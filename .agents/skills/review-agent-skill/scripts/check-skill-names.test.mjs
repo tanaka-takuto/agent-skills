@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +24,11 @@ function fixture(t) {
 
   for (const path of [
     '.githook/pre-commit',
+    '.githook/check-staged-format.mjs',
     '.agents/skills/review-agent-skill/scripts/check-skill-names.mjs',
+    '.agents/skills/review-agent-skill/scripts/check-skill-size.mjs',
+    '.prettierrc.json',
+    'package.json',
   ]) {
     const source = join(repo, path);
     if (existsSync(source)) {
@@ -33,6 +37,9 @@ function fixture(t) {
       copyFileSync(source, target);
     }
   }
+  symlinkSync(join(repo, 'node_modules'), join(cwd, 'node_modules'));
+  git(cwd, 'add', '--', '.prettierrc.json', 'package.json');
+  git(cwd, '-c', 'core.hooksPath=/dev/null', 'commit', '-qm', 'test(repo): setup');
   return cwd;
 }
 
@@ -61,7 +68,7 @@ test('pre-commit rejects a staged skill with a non-kebab-case name', (t) => {
 
 test('pre-commit accepts a valid staged skill', (t) => {
   const cwd = fixture(t);
-  stage(cwd, '.agents/skills/example-skill/SKILL.md', '---\nname: "example-skill"\ndescription: Test.\n---\n');
+  stage(cwd, '.agents/skills/example-skill/SKILL.md', '---\nname: example-skill\ndescription: Test.\n---\n');
 
   assert.equal(commit(cwd).status, 0);
 });
@@ -101,7 +108,7 @@ test('pre-commit rejects an invalid staged blob even when working tree is fixed'
   assert.match(result.stderr, /example_skill/);
 });
 
-test('pre-commit ignores staged files other than SKILL.md', (t) => {
+test('pre-commit does not apply Skill naming rules to other Markdown', (t) => {
   const cwd = fixture(t);
   stage(cwd, '.agents/skills/example-skill/notes.md', 'name: example_skill\n');
 

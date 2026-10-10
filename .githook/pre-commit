@@ -2,4 +2,7 @@
 set -eu
 
 repo_root=$(git rev-parse --show-toplevel)
-exec node "$repo_root/.agents/skills/review-agent-skill/scripts/check-skill-names.mjs" --staged
+cd "$repo_root"
+node "$repo_root/.agents/skills/review-agent-skill/scripts/check-skill-names.mjs" --staged
+node "$repo_root/.agents/skills/review-agent-skill/scripts/check-skill-size.mjs" --staged
+exec node "$repo_root/.githook/check-staged-format.mjs"
