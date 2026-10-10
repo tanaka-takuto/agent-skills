@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+message_file=${1:?commit message file is required}
+
+# Git adds comment lines when an editor opens the message. Check the message
+# that will be committed, then write it back as exactly one line.
+message=$(git stripspace --strip-comments < "$message_file")
+
+invalid_message() {
+  printf '%s\n' 'コミットメッセージは1行の Conventional Commits 形式にしてください。' >&2
+  printf '%s\n' '形式: <type>(<scope>)!: <description>（! は省略可）' >&2
+  printf '%s\n' 'type: feat, fix, docs, refactor, test, chore, ci' >&2
+  printf '%s\n' 'scope: hooks, skills, repo' >&2
+  printf '%s\n' '例: feat(hooks): コミットメッセージを検証する' >&2
+  exit 1
+}
+
+case "$message" in
+  '' | *'
+'*) invalid_message ;;
+esac
+
+if ! printf '%s\n' "$message" | LC_ALL=C grep -Eq '^(feat|fix|docs|refactor|test|chore|ci)\((hooks|skills|repo)\)!?: [^[:space:]](.*[^[:space:]])?$'; then
+  invalid_message
+fi
+
+printf '%s\n' "$message" > "$message_file"
