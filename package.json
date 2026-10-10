@@ -3,7 +3,10 @@
   "private": true,
   "scripts": {
     "format": "prettier --write \"skills/**/*.md\" \".agents/skills/**/*.md\"",
-    "format:check": "prettier --check \"skills/**/*.md\" \".agents/skills/**/*.md\""
+    "format:check": "prettier --check \"skills/**/*.md\" \".agents/skills/**/*.md\"",
+    "check:skill-names": "node .agents/skills/review-agent-skill/scripts/check-skill-names.mjs skills/*/SKILL.md .agents/skills/*/SKILL.md",
+    "check:skill-size": "node .agents/skills/review-agent-skill/scripts/check-skill-size.mjs skills/*/SKILL.md .agents/skills/*/SKILL.md",
+    "test": "node --test .agents/skills/review-agent-skill/scripts/*.test.mjs"
   },
   "devDependencies": {
     "prettier": "3.9.9"
