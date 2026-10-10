@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+exec node "$repo_root/.agents/skills/review-agent-skill/scripts/check-skill-names.mjs" --staged

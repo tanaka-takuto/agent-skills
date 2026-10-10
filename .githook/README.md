@@ -13,3 +13,6 @@ git config --local core.hooksPath .githook
 - `scope`: `hooks`, `skills`, `repo`（必須）
 
 例: `feat(hooks): コミットメッセージを検証する`
+
+`pre-commit` は、ステージ済みの `SKILL.md` のファイル名、Skill ディレクトリ名、
+frontmatter の `name` を検証します。Node.js が必要です。
