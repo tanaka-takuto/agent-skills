@@ -587,6 +587,7 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
   function openDialog(selector: string): void {
     focusBeforeDialog = document.activeElement as HTMLElement;
     $(selector).hidden = false;
+    $(selector).querySelector<HTMLElement>(".dialog-body")!.scrollTop = 0;
     $(selector).querySelector<HTMLElement>("textarea,button")?.focus();
   }
   function closeDialog(selector: string): void {

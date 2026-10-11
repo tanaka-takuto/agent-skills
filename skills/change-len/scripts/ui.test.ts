@@ -163,3 +163,47 @@ test("根拠の参照先は表示された画面で選べ、IDを重複配置し
   );
   dom.window.close();
 });
+
+test("長い本文のスクロール領域の外から全ダイアログを閉じ、元の操作へ戻る", () => {
+  const report = fixture();
+  report.sources[0].excerpt = "長い資料の本文\n".repeat(10_000);
+  const dom = new JSDOM(renderReport(report), {
+      runScripts: "dangerously",
+      url: "file:///review.html",
+    }),
+    d = dom.window.document;
+  save(dom, "flow", "保存したコメント");
+  const dialogs = [
+    ["source", '[data-source="diff"]'],
+    ["records", "[data-records]"],
+    ["prompt", "[data-copy]"],
+  ];
+  for (const [name, selector] of dialogs) {
+    const opener = d.querySelector<HTMLButtonElement>(selector)!;
+    opener.focus();
+    opener.click();
+    const dialog = d.querySelector<HTMLElement>(`#${name}-dialog`)!,
+      body = dialog.querySelector<HTMLElement>(".dialog-body"),
+      close = dialog.querySelector<HTMLButtonElement>(
+        `.dialog-header [data-close-${name}]`,
+      );
+    assert.ok(body, `${name}: 本文だけをスクロールする領域がある`);
+    assert.ok(close, `${name}: 本文の外に閉じるボタンがある`);
+    assert.ok(!body.contains(close));
+    assert.equal(dom.window.getComputedStyle(body).overflow, "auto");
+    assert.equal(
+      dom.window.getComputedStyle(dialog.querySelector(".sheet")!).overflow,
+      "hidden",
+    );
+    body.scrollTop = 10_000;
+    close.click();
+    assert.equal(dialog.hidden, true);
+    assert.equal(d.activeElement, opener);
+    opener.click();
+    assert.equal(body.scrollTop, 0);
+    d.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Escape" }));
+    assert.equal(dialog.hidden, true);
+    assert.equal(d.activeElement, opener);
+  }
+  dom.window.close();
+});
