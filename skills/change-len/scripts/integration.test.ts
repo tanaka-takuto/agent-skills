@@ -132,10 +132,7 @@ test("実PR・Issueと資料なし差分は同じ生成コードで異なる内�
   const diff = validateReport(
     JSON.parse(
       readFileSync(
-        new URL(
-          "../references/diff-example.json",
-          import.meta.url,
-        ),
+        new URL("../references/diff-example.json", import.meta.url),
         "utf8",
       ),
     ),
