@@ -144,3 +144,11 @@ test("異なるIDで同じ保存対象へ復元したコメントも黙って重
     b = review.save(review.empty(), r, "flow", "別の記録", "comment.2");
   assert.throws(() => review.merge(a, b), /衝突|競合/);
 });
+
+test("別版で同じ対象へ追加された記録の復元も競合として扱う", () => {
+  const r = Object.assign(fixture(), { reviewKey: "sample:cross-version" }),
+    n = next(r);
+  const a = review.save(review.empty(), r, "flow", "前の版の指摘", "comment.1"),
+    b = review.save(review.empty(), n, "flow", "別の版の指摘", "comment.2");
+  assert.throws(() => review.merge(a, b), /衝突|競合/);
+});

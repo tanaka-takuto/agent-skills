@@ -84,8 +84,10 @@ export function createReviewTools() {
       anchor(c.origin, "origin");
       anchor(c.binding, "binding");
       const bindingKey = canonical([
-        s.reports[c.binding.snapshot],
+        key(s.reports[c.binding.snapshot]) ??
+          canonical(s.reports[c.binding.snapshot]),
         c.binding.targetId,
+        semantic(maps[c.binding.snapshot].get(c.binding.targetId)!),
       ]);
       if (bindings.has(bindingKey))
         throw new Error("同じ対象のコメントが競合しています");

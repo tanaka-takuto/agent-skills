@@ -182,3 +182,13 @@ test("実PR・Issueと資料なし差分は同じ生成コードで異なる内�
   );
   noDocs.window.close();
 });
+
+test("標準入力のNodeプログラムからも生成関数を読み込める", () => {
+  const url = new URL("./render.ts", import.meta.url).href;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-"], {
+    input: `import {renderReport} from ${JSON.stringify(url)}; console.log(typeof renderReport);`,
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /function/);
+});
