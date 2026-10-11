@@ -56,6 +56,8 @@ export type Evidence = {
 };
 export type Report = {
   schemaVersion: 1;
+  reviewKey?: string;
+  reviewComparison?: { base: string; head: string; sourceId: string };
   revision: {
     kind: "commit" | "range" | "diff" | "pr";
     label: string;
@@ -107,6 +109,7 @@ export function validateReport(input: unknown): Report {
   object(input, "report");
   const r = input as Report;
   if (r.schemaVersion !== 1) fail("schemaVersion", "対応する版は1");
+  if (r.reviewKey !== undefined) text(r.reviewKey, "reviewKey");
   object(r.revision, "revision");
   choice(r.revision.kind, ["commit", "range", "diff", "pr"], "revision.kind");
   text(r.revision.label, "revision.label");
@@ -169,6 +172,15 @@ export function validateReport(input: unknown): Report {
       fail(p, "参照の重複");
   };
   refs(r.revision.sourceIds, sets.source, "revision.sourceIds");
+  if (r.reviewComparison !== undefined) {
+    object(r.reviewComparison, "reviewComparison");
+    for (const k of ["base", "head"] as const)
+      if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(r.reviewComparison[k] ?? ""))
+        fail(`reviewComparison.${k}`, "解決済みコミットIDが必要");
+    if (r.reviewComparison.head !== r.revision.head)
+      fail("reviewComparison.head", "今回の比較先と異なる");
+    ref(r.reviewComparison.sourceId, sets.source, "reviewComparison.sourceId");
+  }
   if (!r.revision.sourceIds.length)
     fail("revision.sourceIds", "比較範囲の根拠が必要");
   r.sources.forEach((s, i) => {
@@ -318,6 +330,8 @@ export function validateReport(input: unknown): Report {
     if (!shown.has(t.id))
       fail(`targets.${t.id}`, "画面の配置から参照されていない");
   });
+  if (r.reviewComparison && allIds.has("review.patch"))
+    fail("reviewComparison", "review.patch は前回差分の予約ID");
   return r;
 }
 
@@ -354,6 +368,20 @@ export function indexTargets(r: Report): Map<string, Target> {
           path: [...t.path, `L${line.number}`],
           code: { ...t.code, lines: [line] },
         });
+  if (r.reviewComparison) {
+    const s = r.sources.find((s) => s.id === r.reviewComparison!.sourceId)!;
+    map.set("review.patch", {
+      id: "review.patch",
+      view: "details",
+      path: [VIEW_NAMES.details, "前回レビューから", "Git差分"],
+      label: "前回レビューからのGit差分",
+      text: s.excerpt,
+      certainty: "fact",
+      sourceIds: [s.id],
+      requirementIds: [],
+      evidenceIds: [],
+    });
+  }
   return map;
 }
 
@@ -363,7 +391,7 @@ export function buildPrompt(r: Report, comments: Comment[]): string {
   );
   if (!saved.length) return "";
   const targets = indexTargets(r);
-  const revision = `${r.revision.label}\n比較元：${r.revision.base ?? "差分入力・元版未確認"}\n比較先：${r.revision.head ?? "差分入力・先版未確認"}${r.revision.contentHash ? "\n差分SHA-256：" + r.revision.contentHash : ""}`;
+  const revision = `${r.revision.label}\n比較元：${r.revision.base ?? "差分入力・元版未確認"}\n比較先：${r.revision.head ?? "差分入力・先版未確認"}${r.revision.contentHash ? "\n差分SHA-256：" + r.revision.contentHash : ""}${r.reviewComparison ? "\n前回レビュー済み版：" + r.reviewComparison.base + "\n前回からの比較先：" + r.reviewComparison.head : ""}`;
   return (
     `次のレビューコメントに沿って変更を見直してください。対象版と根拠を照合し、不明な意図は確認してください。\n対象版：${revision}\n\n` +
     saved

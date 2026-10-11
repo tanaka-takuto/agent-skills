@@ -1,7 +1,9 @@
-import type { Report, Target, View, Comment } from "../scripts/model.ts";
+import type { Report, Target, View } from "../scripts/model.ts";
+import type { ReviewState } from "../scripts/review-state.ts";
 declare const VIEW_NAMES: Record<View, string>;
 declare const indexTargets: typeof import("../scripts/model.ts").indexTargets;
 declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
+declare const createReviewTools: typeof import("../scripts/review-state.ts").createReviewTools;
 
 (() => {
   const report: Report = JSON.parse(
@@ -9,6 +11,11 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
   );
   const targets = indexTargets(report);
   const comments = new Map<string, string>();
+  const review = createReviewTools();
+  let state: ReviewState = review.validate(
+    JSON.parse(document.getElementById("review-state-data")!.textContent!),
+  );
+  let comparisonMode = false;
   let selected: string | undefined;
   let focusBeforeDialog: HTMLElement | null = null;
   const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
@@ -26,6 +33,42 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
   const status = (message: string) => {
     $("#status").textContent = message;
   };
+  function assertScope(s: ReviewState): void {
+    if (
+      s.reports.some(
+        (r) =>
+          r.reviewKey && report.reviewKey && r.reviewKey !== report.reviewKey,
+      )
+    )
+      throw new Error("異なるレビューの保存記録です。");
+  }
+  function loadState(): void {
+    try {
+      const saved = localStorage.getItem(review.storageKey(report));
+      if (saved) {
+        const local = review.validate(JSON.parse(saved));
+        assertScope(local);
+        state = local;
+      }
+    } catch {
+      status(
+        "自動保存の読込を利用できません。必要な記録は JSON から復元してください。",
+      );
+    }
+  }
+  function persist(message: string): void {
+    try {
+      localStorage.setItem(review.storageKey(report), JSON.stringify(state));
+      status(message + " 自動保存しました。");
+    } catch {
+      status(
+        message +
+          " 自動保存を利用できません。ページを閉じる前に JSON を保存してください。",
+      );
+    }
+    refreshAnnotations();
+    refreshReview();
+  }
   const btn = (label: string, data: string, value: string = "") => {
     const b = el("button", label);
     b.dataset[data] = value;
@@ -145,6 +188,7 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
     const c = report.changes.find((c) => c.id === id)!;
     const t = targets.get(c.targetId)!;
     const section = el("article", undefined, "change");
+    section.dataset.change = id;
     section.append(target(c.targetId, "h2"), references(t));
     const comparison = el("div", undefined, "code-comparison");
     comparison.append(
@@ -259,6 +303,7 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
     report.requirements.forEach((q) => {
       const row = el("section", undefined, "matrix-row"),
         expected = el("div");
+      row.dataset.requirement = q.id;
       expected.append(
         target(q.targetId, "h3"),
         target(q.expectationId),
@@ -338,6 +383,9 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
     textarea.focus();
   }
   function refreshAnnotations(): void {
+    comments.clear();
+    for (const c of review.resolve(state, report))
+      if (c.status === "current") comments.set(c.current!.id, c.comment.body);
     document.querySelectorAll<HTMLElement>("[data-target]").forEach((node) => {
       node.querySelector(".annotation")?.remove();
       const body = comments.get(node.dataset.target!);
@@ -353,7 +401,188 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
         node.append(pin);
       }
     });
-    $("#comment-count").textContent = String(comments.size);
+    $("#comment-count").textContent = String(state.comments.length);
+  }
+  function refreshReview(): void {
+    const delta = review.difference(state, report);
+    const prepared = report.reviewComparison;
+    const ready =
+      !!delta?.base &&
+      !!delta.head &&
+      (delta.base === delta.head ||
+        (prepared?.base === delta.base && prepared.head === delta.head));
+    $<HTMLButtonElement>("[data-previous]").disabled = !ready;
+    const pending = review
+      .resolve(state, report)
+      .filter((c) => c.status !== "current");
+    $("#pending-count").textContent = pending.length
+      ? `（確認待ち ${pending.length}）`
+      : "";
+    $("#review-status").textContent = !delta
+      ? "レビュー済みの版は未設定です。"
+      : `レビュー済み版：${delta.base ?? "版未確認"}。` +
+        (ready
+          ? "前回からの変更を表示できます。"
+          : "前回比較には、保存した JSON を使って HTML を再生成してください。");
+    if (comparisonMode) showComparison(ready);
+  }
+  function showComparison(enabled: boolean): void {
+    closeComposer();
+    comparisonMode = enabled;
+    $("#review-comparison")?.remove();
+    $("[data-previous]").setAttribute("aria-pressed", String(enabled));
+    $("[data-all-changes]").setAttribute("aria-pressed", String(!enabled));
+    const delta = review.difference(state, report);
+    const changed = new Set(delta?.changedIds ?? []);
+    const changedChanges = new Set(
+      report.changes
+        .filter((c) =>
+          [c.targetId, c.beforeCodeId, c.afterCodeId].some(
+            (id) =>
+              id &&
+              (changed.has(id) ||
+                targets.get(id)?.code?.lines.some((l) => changed.has(l.id))),
+          ),
+        )
+        .map((c) => c.id),
+    );
+    document.querySelectorAll<HTMLElement>("[data-change]").forEach((node) => {
+      node.hidden = enabled && !changedChanges.has(node.dataset.change!);
+      node.querySelector<HTMLElement>(".code-comparison")!.hidden = enabled;
+    });
+    document
+      .querySelectorAll<HTMLElement>("[data-requirement]")
+      .forEach((node) => {
+        const q = report.requirements.find(
+          (q) => q.id === node.dataset.requirement,
+        )!;
+        node.hidden =
+          enabled &&
+          !changed.has(q.targetId) &&
+          !changed.has(q.expectationId) &&
+          !q.changeIds.some((id) => changedChanges.has(id));
+      });
+    document
+      .querySelectorAll<HTMLElement>('[data-screen="overview"] [data-target]')
+      .forEach((node) => {
+        node.classList.toggle(
+          "unchanged",
+          enabled && !changed.has(node.dataset.target!),
+        );
+      });
+    if (enabled && delta) {
+      const pane = el("section", undefined, "review-comparison");
+      pane.id = "review-comparison";
+      pane.append(
+        el("h2", "前回レビューからの変更"),
+        el("p", `前回レビュー済み版：${delta.base}\n現在版：${delta.head}`),
+        el(
+          "p",
+          "前回からの Git 差分を表示しています。以下の説明・要件は今回のレポートから、内容が変わった対象や関連する変更を抜粋しています。全体像の薄い箇所は前回と同じ説明です。",
+        ),
+      );
+      if (delta.base === delta.head)
+        pane.append(
+          el(
+            "p",
+            "前回レビュー済み版と現在版は同じです。Git 差分はありません。",
+          ),
+        );
+      else
+        pane.append(
+          annotate(
+            targets.get("review.patch")!,
+            el("pre", targets.get("review.patch")!.text, "review-patch"),
+          ),
+        );
+      if (delta.removed.length) {
+        pane.append(el("h3", "今回のレポートから削除・未収録となった対象"));
+        delta.removed.forEach((t) =>
+          pane.append(el("p", t.path.join(" > ")), el("pre", t.text)),
+        );
+      }
+      $('[data-screen="details"]').prepend(pane);
+      navigate("details");
+    }
+    refreshAnnotations();
+  }
+  function refreshRecords(): void {
+    $<HTMLTextAreaElement>("#review-export").value = JSON.stringify(
+      state,
+      null,
+      2,
+    );
+    const list = $("#pending-comments");
+    list.replaceChildren();
+    const pending = review
+      .resolve(state, report)
+      .filter((c) => c.status !== "current");
+    if (!pending.length)
+      list.append(el("p", "確認待ちのコメントはありません。"));
+    for (const item of pending) {
+      const row = el("article", undefined, "pending-comment"),
+        c = item.comment;
+      const previous = state.reports[c.binding.snapshot];
+      row.append(
+        el(
+          "h3",
+          {
+            changed: "内容変更",
+            moved: "位置変更",
+            missing: "対象削除・未収録",
+            unverified: "版の一致未確認",
+          }[item.status as Exclude<typeof item.status, "current">],
+        ),
+        el(
+          "p",
+          `元の対象：${item.previous.path.join(" > ")}\n版：${previous.revision.head ?? previous.revision.contentHash}`,
+        ),
+        el(
+          "pre",
+          item.previous.code
+            ? item.previous.code.file +
+                "\n" +
+                item.previous.code.lines
+                  .map((l) => `${l.number}: ${l.text}`)
+                  .join("\n")
+            : item.previous.text,
+        ),
+        el("p", c.body),
+      );
+      if (item.current)
+        row.append(
+          el("p", "今回の対象：" + item.current.path.join(" > ")),
+          el(
+            "pre",
+            item.current.code
+              ? item.current.code.file +
+                  "\n" +
+                  item.current.code.lines
+                    .map((l) => `${l.number}: ${l.text}`)
+                    .join("\n")
+              : item.current.text,
+          ),
+          btn("この版の対象を確認して引き継ぐ", "confirm", c.id),
+        );
+      row.append(btn("この記録を削除", "removeRecord", c.id));
+      list.append(row);
+    }
+  }
+  function restore(text: string): void {
+    try {
+      const incoming = review.validate(JSON.parse(text));
+      assertScope(incoming);
+      const merged = review.merge(state, incoming);
+      state = merged;
+      persist("JSON を復元しました。");
+      refreshRecords();
+      $("#record-status").textContent =
+        "JSON を復元しました。変更された対象は確認待ちに残しています。";
+    } catch (error) {
+      $("#record-status").textContent =
+        (error instanceof Error ? error.message : String(error)) +
+        " 保存済みの記録は変更していません。";
+    }
   }
   function openDialog(selector: string): void {
     focusBeforeDialog = document.activeElement as HTMLElement;
@@ -365,11 +594,7 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
     focusBeforeDialog?.focus();
   }
   async function copy(): Promise<void> {
-    const saved: Comment[] = [...comments].map(([targetId, body]) => ({
-      targetId,
-      body,
-    }));
-    const prompt = buildPrompt(report, saved);
+    const prompt = review.buildRequest(state, report);
     if (!prompt) {
       status("保存済みのコメントがありません。");
       return;
@@ -391,12 +616,79 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
     const clicked = event.target as HTMLElement;
     const button = clicked.closest<HTMLButtonElement>("button");
     if (button) {
+      if ("records" in button.dataset) {
+        refreshRecords();
+        if ($("#records-dialog").hidden) openDialog("#records-dialog");
+        return;
+      }
+      if ("closeRecords" in button.dataset) {
+        closeDialog("#records-dialog");
+        return;
+      }
+      if ("restore" in button.dataset) {
+        restore($<HTMLTextAreaElement>("#review-import").value);
+        return;
+      }
+      if ("selectRecords" in button.dataset) {
+        $<HTMLTextAreaElement>("#review-export").select();
+        return;
+      }
+      if ("download" in button.dataset) {
+        const json = JSON.stringify(state, null, 2);
+        try {
+          const url = URL.createObjectURL(
+            new Blob([json], { type: "application/json" }),
+          );
+          const a = el("a");
+          a.href = url;
+          a.download = "change-len-review.json";
+          document.body.append(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          $("#record-status").textContent =
+            "JSON のダウンロードを開始しました。保存先にファイルがあることを確認してください。";
+        } catch {
+          $<HTMLTextAreaElement>("#review-export").select();
+          $("#record-status").textContent =
+            "JSON 全文を選択しました。コピーして JSON ファイルに保存してください。";
+        }
+        return;
+      }
+      if (button.dataset.confirm || button.dataset.removeRecord) {
+        try {
+          state = button.dataset.confirm
+            ? review.confirm(state, button.dataset.confirm, report)
+            : review.remove(state, button.dataset.removeRecord!);
+          persist("コメントの記録を更新しました。");
+          refreshRecords();
+          $("#record-status").textContent = "コメントの記録を更新しました。";
+        } catch (error) {
+          $("#record-status").textContent =
+            error instanceof Error ? error.message : String(error);
+        }
+        return;
+      }
+      if ("reviewed" in button.dataset) {
+        state = review.markReviewed(state, report);
+        persist("この版をレビュー済みにしました。");
+        return;
+      }
+      if ("previous" in button.dataset) {
+        if (!button.disabled) showComparison(true);
+        return;
+      }
+      if ("allChanges" in button.dataset) {
+        showComparison(false);
+        return;
+      }
       if (button.dataset.view) {
         navigate(button.dataset.view as View);
         return;
       }
       if (button.dataset.jump) {
         const t = targets.get(button.dataset.jump)!;
+        if (comparisonMode && t.id !== "review.patch") showComparison(false);
         navigate(t.view);
         const node = document.querySelector<HTMLElement>(
           `[data-screen="${t.view}"] [data-target="${t.id}"]`,
@@ -424,17 +716,26 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
           status("コメント本文を入力してください。");
           return;
         }
-        comments.set(selected!, body);
+        state = review.save(
+          state,
+          report,
+          selected!,
+          body,
+          "comment." +
+            (globalThis.crypto?.randomUUID?.() ??
+              Date.now().toString(36) + Math.random().toString(36).slice(2)),
+        );
         closeComposer();
-        refreshAnnotations();
-        status("コメントを保存しました。");
+        persist("コメントを保存しました。");
         return;
       }
       if ("delete" in button.dataset) {
-        comments.delete(selected!);
+        const c = review
+          .resolve(state, report)
+          .find((c) => c.status === "current" && c.current?.id === selected);
+        if (c) state = review.remove(state, c.comment.id);
         closeComposer();
-        refreshAnnotations();
-        status("コメントを削除しました。");
+        persist("コメントを削除しました。");
         return;
       }
       if ("cancel" in button.dataset) {
@@ -465,8 +766,10 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      if (!$("#prompt-dialog").hidden) closeDialog("#prompt-dialog");
-      else if (!$("#source-dialog").hidden) closeDialog("#source-dialog");
+      const dialog = document.querySelector<HTMLElement>(
+        ".overlay:not([hidden])",
+      );
+      if (dialog) closeDialog("#" + dialog.id);
       else closeComposer();
       return;
     }
@@ -474,7 +777,7 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
     if (event.key === "Tab" && modal) {
       const fields = [
         ...modal.querySelectorAll<HTMLElement>(
-          "button,textarea,a:not([hidden])",
+          "button:not([disabled]),textarea,input,a:not([hidden])",
         ),
       ];
       const first = fields[0],
@@ -496,5 +799,19 @@ declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
       compose(event.target as HTMLElement);
     }
   });
+  $("#review-file").addEventListener("change", () => {
+    const file = $<HTMLInputElement>("#review-file").files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => restore(String(reader.result));
+    reader.onerror = () => {
+      $("#record-status").textContent =
+        "JSON ファイルを読み込めませんでした。記録は変更していません。";
+    };
+    reader.readAsText(file);
+  });
   render();
+  loadState();
+  refreshAnnotations();
+  refreshReview();
 })();

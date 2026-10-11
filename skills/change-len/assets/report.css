@@ -623,3 +623,50 @@ footer {
     margin-bottom: 0.3rem;
   }
 }
+
+.review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 1rem clamp(1rem, 4vw, 3rem);
+  border-bottom: 1px solid var(--rule);
+}
+.review-controls p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+}
+.review-controls [aria-pressed="true"] {
+  border-color: var(--red);
+  color: var(--red);
+}
+.review-controls button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.review-comparison,
+.pending-comment {
+  border-block: 1px solid var(--rule);
+  padding-block: 1.4rem;
+  margin-block: 1rem;
+}
+.review-patch,
+.pending-comment pre,
+#review-export,
+#review-import {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+#review-export,
+#review-import {
+  min-height: 9rem;
+  font: 0.85rem/1.6 monospace;
+}
+#records-dialog label {
+  display: block;
+  margin-top: 1.2rem;
+}
+.target.unchanged {
+  opacity: 0.55;
+}

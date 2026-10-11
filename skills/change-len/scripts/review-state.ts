@@ -69,6 +69,7 @@ export function createReviewTools() {
         throw new Error(`${name}: 版と対象が存在しません`);
     };
     const ids = new Set<string>();
+    const bindings = new Set<string>();
     for (const c of s.comments) {
       if (
         !c ||
@@ -82,6 +83,13 @@ export function createReviewTools() {
         throw new Error("コメント本文が必要");
       anchor(c.origin, "origin");
       anchor(c.binding, "binding");
+      const bindingKey = canonical([
+        s.reports[c.binding.snapshot],
+        c.binding.targetId,
+      ]);
+      if (bindings.has(bindingKey))
+        throw new Error("同じ対象のコメントが競合しています");
+      bindings.add(bindingKey);
     }
     if (
       s.reviewed &&
@@ -232,7 +240,7 @@ export function createReviewTools() {
         throw new Error("レビュー済み版の競合。既存記録は変更していません");
       s.reviewed = { snapshot: at };
     }
-    return s;
+    return validate(s);
   };
   const storageKey = (r: Report) =>
     "change-len:review:v1:" + (key(r) ?? canonical(r.revision));

@@ -15,6 +15,8 @@
 | `requirements`  | `{id, targetId, expectationId, changeIds, evidenceIds}`。原文と期待結果を区別する。資料なしなら `[]`                                                                                       |
 | `evidence`      | `{id, targetId, status, method, conditions, result}`。状態は `observed` / `unverified` / `missing`。確認方法・条件・観測結果を含む                                                         |
 
+`reviewKey` は任意の空でない文字列で、リポジトリとレビューを区別する安定した識別子。再レビューでは同じ値を維持する。`reviewComparison` は生成コードが Git から取得する任意の `{base, head, sourceId}`。`base` は明示レビュー済みの head、`head` は今回の `revision.head`、`sourceId` は保存した前回差分の出典。初期の `revision.base` と区別する。両方の版を解決済みコミット ID にする。`review.patch` は前回差分全体へコメントする予約 ID で、他の対象・行・出典には使わない。
+
 コミット ID は省略しない 40 桁または 64 桁の小文字十六進数。差分ファイルの元版・先版を特定できない場合は `kind: "diff"`、`base: null`、`head: null` とし、差分ファイルの SHA-256 を `contentHash` に保存する。分かっている版があれば同じ形式で記録する。`sourceIds` には比較範囲を裏付ける保存資料を指定する。
 
 全 ID はレポート全体で一意とし、英数字と `_ . : -` を使う。表示名は一致してもよい。要件と変更の対応は `changes[].requirementIds` と `requirements[].changeIds` の双方へ記録し、根拠がない対応は空配列にする。
@@ -64,4 +66,6 @@
 
 HTML にはデータ、CSS、型除去後の JavaScript を埋め込む。入力テキストは HTML として評価せず、JSON 内の `<` をエスケープし、画面では `textContent` を使う。CSP のハッシュで同梱コード・スタイルだけを許可し、外部アセット・API 接続を使わない。外部の原文を開く操作だけは通信が必要で、保存済み内容は HTML 内から読める。
 
-コメント保存は `{targetId, body}` の対で、空白だけの本文・未保存・取消を依頼文へ含めない。本文の改行・引用符・前後空白を保存時に書き換えない。依頼文は `buildPrompt` で対象データと結合する。同じ JSON と同じ順序の保存コメントは同じ依頼内容になる。
+依頼文生成器 `buildPrompt` の入力は `{targetId, body}` の対で、空白だけの本文・未保存・取消を依頼文へ含めない。本文の改行・引用符・前後空白を保存時に書き換えない。依頼文は `buildPrompt` で対象データと結合する。同じ JSON と同じ順序の保存コメントは同じ依頼内容になる。
+
+保存と再レビュー用の JSON は Report とは別の v1 契約。[レビューの保存と再レビュー](review-state.md)を参照する。`createReviewTools` が保存・検証・復元・引継ぎ・依頼文生成を扱い、HTML でも同じ処理を使用する。

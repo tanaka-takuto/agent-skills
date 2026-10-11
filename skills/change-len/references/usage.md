@@ -1,6 +1,6 @@
 # 導入と検証
 
-公開元の `skills/change-len` は共通の Skill パッケージ。実行に必要なのは `SKILL.md`、`references`、`scripts/model.ts`、`scripts/render.ts`、`assets`、このディレクトリの `package.json`。生成コードは Node.js 標準ライブラリだけを使う。
+公開元の `skills/change-len` は共通の Skill パッケージ。実行に必要なのは `SKILL.md`、`references`、`scripts/model.ts`、`scripts/review-state.ts`、`scripts/compare.ts`、`scripts/render.ts`、`assets`、このディレクトリの `package.json`。生成コードは Node.js 標準ライブラリだけを使う。
 
 ## Claude Code／Codex
 
@@ -26,6 +26,8 @@ node skills/change-len/scripts/render.ts skills/change-len/references/example.js
 別の実入力は `references/pr-example.json`（Node.js PR #56350 と Issue #17）、資料なしの差分入力は `references/diff-example.json`。同じ生成コードを使用できる。
 
 生成後は HTML だけを任意の場所へコピーして、ブラウザで開く。閲覧者が Node.js、JSON、画像、サーバーを用意する必要はない。各対象を選ぶと入力欄が直下に現れる。コメントを保存し、「依頼文をコピー」から全文を取得する。自動コピーを利用できないブラウザでも、表示された全文を手動コピーできる。
+
+コメントの自動保存、JSON による保存・復元、前回レビュー済み版からの再生成は [保存と再レビュー](review-state.md) を読む。`archive` と `completion` は設計・作業記録用で、利用・配布に不要。テストデータは `references` と `scripts/testdata` に置く。
 
 Node.js は TypeScript の型を除去して直接実行する。`enum`、引数プロパティ、JSX などコード生成が必要な構文は使わない。型検査は開発時に `tsc --noEmit` で別に行い、ビルド生成物を維持しない。[Node.js の型除去](https://nodejs.org/api/typescript.html)、[stripTypeScriptTypes](https://nodejs.org/api/module.html#modulestriptypescripttypescode-options)
 

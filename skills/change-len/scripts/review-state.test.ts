@@ -137,3 +137,10 @@ test("レビュー識別子が一致する再生成版だけで同じID・内容
     /異なる/,
   );
 });
+
+test("異なるIDで同じ保存対象へ復元したコメントも黙って重ねない", () => {
+  const r = fixture();
+  const a = review.save(review.empty(), r, "flow", "最初", "comment.1"),
+    b = review.save(review.empty(), r, "flow", "別の記録", "comment.2");
+  assert.throws(() => review.merge(a, b), /衝突|競合/);
+});
