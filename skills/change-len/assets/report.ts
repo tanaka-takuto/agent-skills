@@ -20,6 +20,40 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
   let focusBeforeDialog: HTMLElement | null = null;
   const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
     document.querySelector<T>(selector)!;
+  const animations = new WeakMap<HTMLElement, Animation>();
+  function stopMotion(node: HTMLElement): void {
+    animations.get(node)?.cancel();
+    animations.delete(node);
+  }
+  function motion(
+    node: HTMLElement,
+    frames: Keyframe[],
+    duration: number,
+  ): Animation | undefined {
+    stopMotion(node);
+    if (
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
+      typeof node.animate !== "function"
+    )
+      return;
+    const animation = node.animate(frames, {
+      duration,
+      easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+    });
+    animations.set(node, animation);
+    void animation.finished.catch(() => {});
+    return animation;
+  }
+  function reveal(node: HTMLElement, duration = 200): void {
+    motion(
+      node,
+      [
+        { opacity: 0, transform: "translateY(8px)" },
+        { opacity: 1, transform: "none" },
+      ],
+      duration,
+    );
+  }
   function el<K extends keyof HTMLElementTagNameMap>(
     tag: K,
     text?: string,
@@ -335,7 +369,11 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
     navigate("overview");
   }
   function closeComposer(): void {
-    $("#composer")?.remove();
+    const composer = $("#composer");
+    if (composer) {
+      stopMotion(composer);
+      composer.remove();
+    }
     if (selected)
       document
         .querySelectorAll<HTMLElement>("[data-target]")
@@ -348,7 +386,10 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
   function navigate(view: View): void {
     closeComposer();
     document.querySelectorAll<HTMLElement>("[data-screen]").forEach((s) => {
+      const wasHidden = s.hidden;
       s.hidden = s.dataset.screen !== view;
+      if (s.hidden) stopMotion(s);
+      else if (wasHidden) reveal(s);
     });
     document.querySelectorAll<HTMLElement>("[data-view]").forEach((b) => {
       if (b.dataset.view === view) b.setAttribute("aria-current", "page");
@@ -380,6 +421,7 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
     );
     if (comments.has(id)) editor.append(btn("このコメントを削除", "delete"));
     node.after(editor);
+    reveal(editor, 160);
     textarea.focus();
   }
   function refreshAnnotations(): void {
@@ -585,14 +627,44 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
     }
   }
   function openDialog(selector: string): void {
+    const dialog = $(selector),
+      sheet = dialog.querySelector<HTMLElement>(".sheet")!;
     focusBeforeDialog = document.activeElement as HTMLElement;
-    $(selector).hidden = false;
-    $(selector).querySelector<HTMLElement>(".dialog-body")!.scrollTop = 0;
-    $(selector).querySelector<HTMLElement>("textarea,button")?.focus();
+    dialog.removeAttribute("inert");
+    dialog.hidden = false;
+    dialog.querySelector<HTMLElement>(".dialog-body")!.scrollTop = 0;
+    motion(dialog, [{ opacity: 0 }, { opacity: 1 }], 180);
+    reveal(sheet, 220);
+    dialog.querySelector<HTMLElement>("textarea,button")?.focus();
   }
   function closeDialog(selector: string): void {
-    $(selector).hidden = true;
+    const dialog = $(selector),
+      sheet = dialog.querySelector<HTMLElement>(".sheet")!;
+    if (dialog.hidden || dialog.hasAttribute("inert")) return;
+    dialog.setAttribute("inert", "");
     focusBeforeDialog?.focus();
+    const closing = motion(
+      dialog,
+      [{ opacity: getComputedStyle(dialog).opacity }, { opacity: 0 }],
+      140,
+    );
+    motion(
+      sheet,
+      [
+        { transform: getComputedStyle(sheet).transform },
+        { transform: "translateY(6px)" },
+      ],
+      140,
+    );
+    const finish = () => {
+      if (closing && animations.get(dialog) !== closing) return;
+      dialog.hidden = true;
+      dialog.removeAttribute("inert");
+      stopMotion(dialog);
+      stopMotion(sheet);
+    };
+    if (closing) void closing.finished.then(finish, finish);
+    else finish();
   }
   async function copy(): Promise<void> {
     const prompt = review.buildRequest(state, report);
@@ -619,7 +691,9 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
     if (button) {
       if ("records" in button.dataset) {
         refreshRecords();
-        if ($("#records-dialog").hidden) openDialog("#records-dialog");
+        const dialog = $("#records-dialog");
+        if (dialog.hidden || dialog.hasAttribute("inert"))
+          openDialog("#records-dialog");
         return;
       }
       if ("closeRecords" in button.dataset) {
@@ -768,13 +842,15 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       const dialog = document.querySelector<HTMLElement>(
-        ".overlay:not([hidden])",
+        ".overlay:not([hidden]):not([inert])",
       );
       if (dialog) closeDialog("#" + dialog.id);
       else closeComposer();
       return;
     }
-    const modal = document.querySelector<HTMLElement>(".overlay:not([hidden])");
+    const modal = document.querySelector<HTMLElement>(
+      ".overlay:not([hidden]):not([inert])",
+    );
     if (event.key === "Tab" && modal) {
       const fields = [
         ...modal.querySelectorAll<HTMLElement>(
