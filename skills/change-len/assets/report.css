@@ -1,0 +1,625 @@
+:root {
+  color-scheme: light;
+  --paper: #fbf8f1;
+  --ink: #20252b;
+  --muted: #616974;
+  --rule: #c8c6c0;
+  --red: #a93624;
+  --green: #eaf1e7;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    16px/1.7 system-ui,
+    -apple-system,
+    "Hiragino Kaku Gothic ProN",
+    "Yu Gothic",
+    sans-serif;
+}
+[hidden] {
+  display: none !important;
+}
+button,
+a {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  padding: 0.4rem 0.65rem;
+  text-align: left;
+}
+button:hover,
+a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--red);
+}
+button:focus-visible,
+a:focus-visible,
+.target:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+.primary,
+[data-save] {
+  background: var(--red);
+  color: white;
+  padding: 0.65rem 1.1rem;
+  text-align: center;
+}
+.masthead {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  margin: 0 2rem;
+  padding: 1.2rem 0;
+  border-bottom: 1px solid var(--ink);
+}
+.brand {
+  font:
+    26px Georgia,
+    "Yu Mincho",
+    serif;
+  white-space: nowrap;
+  letter-spacing: 0.035em;
+}
+.brand span {
+  display: inline-block;
+  font: 14px system-ui;
+  letter-spacing: 0;
+  margin-left: 1.3rem;
+}
+#revision {
+  flex: 1;
+  font-size: 14px;
+  min-width: 0;
+}
+#revision span,
+#revision small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+#revision small {
+  color: var(--muted);
+  font: 11px/1.5 monospace;
+}
+#comment-count {
+  margin-left: 0.5rem;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: 205px minmax(0, 1fr);
+  gap: 2.2rem;
+  margin: 2rem;
+}
+aside {
+  border-right: 1px solid var(--rule);
+  padding-right: 1.3rem;
+}
+aside h2 {
+  font-size: 17px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.6rem;
+  margin: 0 0 1rem;
+}
+aside nav button {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0;
+}
+aside nav button[aria-current] {
+  text-decoration: underline;
+  text-decoration-color: var(--red);
+  text-underline-offset: 0.5rem;
+}
+aside nav button[aria-current]:before {
+  content: "●";
+  color: var(--red);
+  font-size: 9px;
+  margin-right: 0.4rem;
+}
+.source-rail {
+  margin-top: 3.5rem;
+}
+#sources button {
+  display: block;
+  font-size: 14px;
+  padding: 0.5rem 0;
+  text-decoration: underline;
+  text-underline-offset: 0.3rem;
+  overflow-wrap: anywhere;
+}
+main {
+  min-width: 0;
+  max-width: 1380px;
+}
+.kicker {
+  font: 14px/1.5 system-ui;
+  letter-spacing: 0.1em;
+  margin: 0 0 1rem;
+}
+h1 {
+  font:
+    clamp(29px, 3.2vw, 48px)/1.5 "Yu Mincho",
+    "Hiragino Mincho ProN",
+    Georgia,
+    serif;
+  margin: 0.5rem 0 1rem;
+  letter-spacing: 0.015em;
+}
+h2 {
+  font:
+    24px/1.5 "Yu Mincho",
+    Georgia,
+    serif;
+  margin: 2rem 0 1rem;
+}
+h3 {
+  font:
+    19px/1.5 "Yu Mincho",
+    Georgia,
+    serif;
+  margin: 0.3rem 0 0.7rem;
+}
+p {
+  margin: 0.5rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+small,
+.muted {
+  color: var(--muted);
+}
+small {
+  font-size: 12px;
+}
+.target {
+  position: relative;
+  cursor: pointer;
+  outline: 1px solid transparent;
+  outline-offset: 5px;
+  min-width: 0;
+}
+.target:hover {
+  outline-color: var(--rule);
+}
+.target.selected {
+  outline-color: var(--red);
+}
+.target-block {
+  margin: 0.8rem 0;
+}
+.certainty {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.target-block p {
+  margin-bottom: 0.2rem;
+}
+.annotation {
+  display: block;
+  color: var(--red);
+  font: 12px/1.6 system-ui;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-left: 2px solid var(--red);
+  padding-left: 0.5rem;
+  margin: 0.4rem 0;
+}
+.source-links,
+.references {
+  font-size: 13px;
+}
+.references button,
+.change-nav button,
+[data-jump] {
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+  padding: 0.3rem 0.4rem 0.3rem 0;
+  margin-right: 1rem;
+}
+.references:empty {
+  display: none;
+}
+.behavior-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3rem;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.2rem 0;
+}
+.behavior-comparison section + section {
+  border-left: 1px solid var(--rule);
+  padding-left: 2rem;
+}
+.flow {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  padding: 1rem 0;
+}
+.flow-node {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+.flow-number {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  width: 46px;
+  height: 46px;
+  font: 25px Georgia;
+  margin: 0.5rem;
+}
+.flow-node + .flow-node:before {
+  content: "→";
+  float: left;
+  color: var(--muted);
+  margin-left: -1.7rem;
+  margin-top: 1.3rem;
+}
+.flow-node h3 {
+  margin-top: 0.5rem;
+}
+.composer {
+  position: relative;
+  border: 1px solid var(--red);
+  background: #fffdf8;
+  padding: 1rem;
+  margin: 1rem 0;
+  min-width: 0;
+  text-align: left;
+  grid-column: 1/-1;
+  max-width: 740px;
+  box-shadow: 0 3px 12px #2221;
+}
+.composer:before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 26px;
+  width: 14px;
+  height: 14px;
+  border-left: 1px solid var(--red);
+  border-top: 1px solid var(--red);
+  transform: rotate(45deg);
+  background: #fffdf8;
+}
+.composer p {
+  font-size: 13px;
+  margin: 0 0 0.3rem;
+}
+.composer label {
+  display: block;
+  margin: 0.6rem 0 0.2rem;
+}
+.composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  font: 15px/1.6 system-ui;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 0.6rem;
+  margin-bottom: 0.8rem;
+}
+.composer button {
+  font-size: 14px;
+  margin-right: 0.5rem;
+}
+details {
+  border-top: 1px solid var(--rule);
+  margin: 1rem 0;
+  padding: 0.7rem 0;
+}
+summary {
+  cursor: pointer;
+  font-size: 14px;
+}
+details[open] > :not(summary) {
+  margin-left: 1rem;
+}
+.evidence > p {
+  font-size: 14px;
+}
+.change {
+  border-top: 1px solid var(--rule);
+  padding: 1.3rem 0;
+}
+.change-nav {
+  margin: 1.5rem 0;
+}
+.code-comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+.code-panel {
+  min-width: 0;
+  border: 1px solid var(--rule);
+}
+.code-heading {
+  padding: 0.7rem;
+  background: #eae7e133;
+}
+.after .code-heading {
+  background: var(--green);
+}
+.code-heading h3,
+.code-heading p {
+  margin: 0.1rem 0;
+}
+.code-heading p {
+  font: 13px/1.6 monospace;
+}
+.code-heading small {
+  font: 10px/1.5 monospace;
+  overflow-wrap: anywhere;
+  display: block;
+}
+.code-lines {
+  overflow: auto;
+  padding: 0.5rem 0;
+}
+.code-line {
+  display: grid;
+  grid-template-columns: 42px minmax(max-content, 1fr);
+  font:
+    12px/1.9 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+  outline-offset: -1px;
+  white-space: pre;
+  min-width: 100%;
+  width: max-content;
+  padding-right: 1rem;
+}
+.line-number {
+  text-align: right;
+  padding-right: 0.8rem;
+  color: var(--muted);
+  user-select: none;
+}
+.code-line.added {
+  background: #eaf2e6;
+}
+.code-line.removed {
+  background: #f7e6e2;
+}
+.code-line .annotation {
+  grid-column: 2;
+  font-size: 11px;
+}
+.code-panel .references {
+  padding: 0.6rem;
+}
+.code-lines .composer {
+  white-space: normal;
+  min-width: 250px;
+  margin: 1rem;
+}
+.empty-code {
+  font-size: 14px;
+  background: #edeae333;
+  padding: 1rem;
+}
+.matrix-row {
+  display: grid;
+  grid-template-columns: 1.1fr 0.8fr 1fr;
+  gap: 2rem;
+  padding: 1.3rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.matrix-row > div {
+  min-width: 0;
+}
+.matrix-heading {
+  padding-bottom: 0.5rem;
+  margin-top: 2rem;
+}
+.matrix-row [data-jump] {
+  display: block;
+}
+.matrix-row .evidence details {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+footer {
+  margin: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+#status {
+  color: var(--red);
+}
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #20252b88;
+  z-index: 20;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+.sheet {
+  background: var(--paper);
+  width: min(920px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 2rem;
+  border: 1px solid var(--ink);
+}
+.sheet h2 {
+  margin-top: 0;
+}
+.sheet label {
+  font-size: 13px;
+}
+#prompt-output {
+  display: block;
+  width: 100%;
+  height: 50vh;
+  font: 13px/1.7 monospace;
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  background: white;
+}
+#source-excerpt {
+  font: 13px/1.8 monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-block: 1px solid var(--rule);
+  padding: 1rem 0;
+}
+.sheet button {
+  margin-top: 1rem;
+  border: 1px solid var(--rule);
+  margin-right: 1rem;
+}
+#source-url {
+  display: block;
+}
+@media (max-width: 900px) {
+  .masthead {
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .brand {
+    font-size: 23px;
+  }
+  #revision {
+    flex-basis: 100%;
+    order: 3;
+  }
+  .workspace {
+    grid-template-columns: 160px minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+  .matrix-row {
+    gap: 1rem;
+  }
+  .code-comparison {
+    grid-template-columns: 1fr;
+  }
+  .flow {
+    flex-direction: column;
+  }
+  .flow-node {
+    text-align: left;
+    width: 100%;
+  }
+  .flow-node + .flow-node:before {
+    content: "↓";
+    float: none;
+    margin: 0;
+    display: block;
+  }
+  .flow-number {
+    float: left;
+    margin-right: 1rem;
+  }
+  .matrix-row {
+    grid-template-columns: 1fr;
+  }
+  .matrix-heading {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  body {
+    font-size: 15px;
+  }
+  .masthead {
+    margin: 0 1rem;
+    padding: 1rem 0;
+  }
+  .brand span {
+    display: none;
+  }
+  .masthead > .primary {
+    margin-left: auto;
+    font-size: 13px;
+    padding: 0.5rem;
+  }
+  .workspace {
+    display: block;
+    margin: 1rem;
+  }
+  aside {
+    border: 0;
+    padding: 0;
+    margin-bottom: 2rem;
+  }
+  aside nav {
+    display: flex;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule);
+  }
+  aside nav h2 {
+    width: 100%;
+    border: 0;
+    font-size: 14px;
+    margin-bottom: 0.3rem;
+  }
+  aside nav button {
+    width: auto;
+    font-size: 13px;
+    padding: 0.5rem;
+    margin-right: 0.5rem;
+  }
+  .source-rail {
+    display: none;
+  }
+  h1 {
+    font-size: 29px;
+  }
+  h2 {
+    font-size: 21px;
+  }
+  .behavior-comparison {
+    gap: 1rem;
+  }
+  .behavior-comparison section + section {
+    padding-left: 1rem;
+  }
+  .overlay {
+    padding: 0.7rem;
+  }
+  .sheet {
+    padding: 1rem;
+  }
+  .code-line {
+    font-size: 11px;
+  }
+  footer {
+    margin: 1rem;
+  }
+  .composer {
+    padding: 0.7rem;
+  }
+  .composer button {
+    margin-bottom: 0.3rem;
+  }
+}

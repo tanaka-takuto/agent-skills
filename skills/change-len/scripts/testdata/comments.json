@@ -1,0 +1,14 @@
+[
+  {
+    "targetId": "overview.flow.1",
+    "body": "入力資料の採用状態も確認対象に含めてほしい"
+  },
+  {
+    "targetId": "code.skill.L3",
+    "body": "適用条件に、実装を開始しない境界を明記してほしい"
+  },
+  {
+    "targetId": "expectation.length",
+    "body": "参照資料の長さを本文の上限と混同しないことを示してほしい"
+  }
+]

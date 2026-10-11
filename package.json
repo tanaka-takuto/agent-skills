@@ -2,6 +2,8 @@
   "name": "agent-skills",
   "private": true,
   "scripts": {
+    "check:change-len": "tsc -p skills/change-len/tsconfig.json",
+    "test:change-len": "node --test skills/change-len/scripts/*.test.ts",
     "format": "prettier --write \"**/*.md\" \".agents/**/*.md\" \".githook/**/*.md\"",
     "format:check": "prettier --check \"**/*.md\" \".agents/**/*.md\" \".githook/**/*.md\"",
     "check:skill-names": "node .agents/skills/review-agent-skill/scripts/check-skill-names.mjs skills/*/SKILL.md .agents/skills/*/SKILL.md",
@@ -9,6 +11,10 @@
     "test": "node --test .agents/skills/review-agent-skill/scripts/*.test.mjs .githook/*.test.mjs"
   },
   "devDependencies": {
-    "prettier": "3.9.9"
+    "@types/jsdom": "21.1.7",
+    "@types/node": "22.20.5",
+    "jsdom": "26.1.0",
+    "prettier": "3.9.9",
+    "typescript": "7.0.2"
   }
 }

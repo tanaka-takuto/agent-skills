@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "revision": {
+    "kind": "pr",
+    "label": "Node.js PR #56350 · TypeScript の型除去を既定で有効化",
+    "base": "da3f388c1485ae03b0bc3dfb3fd79dc37cc91dfd",
+    "head": "d847c3201db550830f1b90fdc4e0e060e1ce88da",
+    "sourceIds": ["raw-diff", "pr-meta"]
+  },
+  "sources": [
+    {
+      "id": "raw-diff",
+      "label": "PR の元の差分（全体）",
+      "locator": "https://github.com/nodejs/node/pull/56350",
+      "excerpt": "diff --git a/benchmark/ts/strip-typescript.js b/benchmark/ts/strip-typescript.js\nindex 7a7155c568b6..29c81f5a750b 100644\n--- a/benchmark/ts/strip-typescript.js\n+++ b/benchmark/ts/strip-typescript.js\n@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {\n   filepath: [ts, js],\n   n: [1e4],\n }, {\n-  flags: ['--experimental-strip-types', '--disable-warning=ExperimentalWarning'],\n+  flags: ['--disable-warning=ExperimentalWarning'],\n });\n \n async function main({ n, filepath }) {\ndiff --git a/doc/api/cli.md b/doc/api/cli.md\nindex 3e61b248b94f..87eda0deb66b 100644\n--- a/doc/api/cli.md\n+++ b/doc/api/cli.md\n@@ -780,7 +780,7 @@ Any query parameter or hash in the URL will be accessible via [`import.meta.url`\n \n ```bash\n node --entry-url 'file:///path/to/file.js?queryparams=work#and-hashes-too'\n-node --entry-url --experimental-strip-types 'file.ts?query#hash'\n+node --entry-url 'file.ts?query#hash'\n node --entry-url 'data:text/javascript,console.log(\"Hello\")'\n ```\n \n@@ -880,8 +880,8 @@ On Windows, using `cmd.exe` a single quote will not work correctly because it\n only recognizes double `\"` for quoting. In Powershell or Git bash, both `'`\n and `\"` are usable.\n \n-It is possible to run code containing inline types by passing\n-[`--experimental-strip-types`][].\n+It is possible to run code containing inline types unless the\n+[`--no-experimental-strip-types`][] flag is provided.\n \n ### `--experimental-addon-modules`\n \n@@ -1008,17 +1008,6 @@ added:\n \n Use this flag to enable [ShadowRealm][] support.\n \n-### `--experimental-strip-types`\n-\n-<!-- YAML\n-added: v22.6.0\n--->\n-\n-> Stability: 1.1 - Active development\n-\n-Enable experimental type-stripping for TypeScript files.\n-For more information, see the [TypeScript type-stripping][] documentation.\n-\n ### `--experimental-test-coverage`\n \n <!-- YAML\n@@ -1059,7 +1048,7 @@ added: v22.7.0\n > Stability: 1.1 - Active development\n \n Enables the transformation of TypeScript-only syntax into JavaScript code.\n-Implies `--experimental-strip-types` and `--enable-source-maps`.\n+Implies `--enable-source-maps`.\n \n ### `--experimental-vm-modules`\n \n@@ -1370,10 +1359,10 @@ added: v12.0.0\n \n This configures Node.js to interpret `--eval` or `STDIN` input as CommonJS or\n as an ES module. Valid values are `\"commonjs\"`, `\"module\"`, `\"module-typescript\"` and `\"commonjs-typescript\"`.\n-The `\"-typescript\"` values are available only in combination with the flag `--experimental-strip-types`.\n+The `\"-typescript\"` values are not available with the flag `--no-experimental-strip-types`.\n The default is `\"commonjs\"`.\n \n-If `--experimental-strip-types` is enabled and `--input-type` is not provided,\n+If `--input-type` is not provided,\n Node.js will try to detect the syntax with the following steps:\n \n 1. Run the input as CommonJS.\n@@ -1663,6 +1652,21 @@ changes:\n \n Disable the experimental [`node:sqlite`][] module.\n \n+### `--no-experimental-strip-types`\n+\n+<!-- YAML\n+added: v22.6.0\n+changes:\n+  - version: REPLACEME\n+    pr-url: https://github.com/nodejs/node/pull/56350\n+    description: Type stripping is enabled by default.\n+-->\n+\n+> Stability: 1.1 - Active development\n+\n+Disable experimental type-stripping for TypeScript files.\n+For more information, see the [TypeScript type-stripping][] documentation.\n+\n ### `--no-experimental-websocket`\n \n <!-- YAML\n@@ -3089,7 +3093,6 @@ one is included in the list below.\n * `--experimental-require-module`\n * `--experimental-shadow-realm`\n * `--experimental-specifier-resolution`\n-* `--experimental-strip-types`\n * `--experimental-test-isolation`\n * `--experimental-top-level-await`\n * `--experimental-transform-types`\n@@ -3127,6 +3130,7 @@ one is included in the list below.\n * `--no-experimental-global-navigator`\n * `--no-experimental-repl-await`\n * `--no-experimental-sqlite`\n+* `--no-experimental-strip-types`\n * `--no-experimental-websocket`\n * `--no-extra-info-on-fatal-exception`\n * `--no-force-async-hooks-checks`\n@@ -3651,10 +3655,10 @@ node --stack-trace-limit=12 -p -e \"Error.stackTraceLimit\" # prints 12\n [`--env-file`]: #--env-fileconfig\n [`--experimental-addon-modules`]: #--experimental-addon-modules\n [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs\n-[`--experimental-strip-types`]: #--experimental-strip-types\n [`--experimental-wasm-modules`]: #--experimental-wasm-modules\n [`--heap-prof-dir`]: #--heap-prof-dir\n [`--import`]: #--importmodule\n+[`--no-experimental-strip-types`]: #--no-experimental-strip-types\n [`--openssl-config`]: #--openssl-configfile\n [`--preserve-symlinks`]: #--preserve-symlinks\n [`--print`]: #-p---print-script\ndiff --git a/doc/api/process.md b/doc/api/process.md\nindex 3008fc2580e8..5eb05bfe4860 100644\n--- a/doc/api/process.md\n+++ b/doc/api/process.md\n@@ -2025,8 +2025,9 @@ added:\n \n * {boolean|string}\n \n-A value that is `\"strip\"` if Node.js is run with `--experimental-strip-types`,\n-`\"transform\"` if Node.js is run with `--experimental-transform-types`, and `false` otherwise.\n+A value that is `\"strip\"` by default,\n+`\"transform\"` if Node.js is run with `--experimental-transform-types`, and `false` if\n+Node.js is run with `--no-experimental-strip-types`.\n \n ## `process.features.uv`\n \ndiff --git a/doc/api/test.md b/doc/api/test.md\nindex 5d3714eade88..a8af9fe2b2d9 100644\n--- a/doc/api/test.md\n+++ b/doc/api/test.md\n@@ -420,8 +420,8 @@ By default, Node.js will run all files matching these patterns:\n * `**/test.{cjs,mjs,js}`\n * `**/test/**/*.{cjs,mjs,js}`\n \n-When [`--experimental-strip-types`][] is supplied, the following\n-additional patterns are matched:\n+Unless [`--no-experimental-strip-types`][] is supplied, the following\n+additional patterns are also matched:\n \n * `**/*.test.{cts,mts,ts}`\n * `**/*-test.{cts,mts,ts}`\n@@ -3591,10 +3591,10 @@ added:\n Can be used to abort test subtasks when the test has been aborted.\n \n [TAP]: https://testanything.org/\n-[`--experimental-strip-types`]: cli.md#--experimental-strip-types\n [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage\n [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks\n [`--import`]: cli.md#--importmodule\n+[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types\n [`--test-concurrency`]: cli.md#--test-concurrency\n [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude\n [`--test-coverage-include`]: cli.md#--test-coverage-include\ndiff --git a/doc/api/typescript.md b/doc/api/typescript.md\nindex d2680670a5f3..fe9ced4080f2 100644\n--- a/doc/api/typescript.md\n+++ b/doc/api/typescript.md\n@@ -2,6 +2,9 @@\n \n <!-- YAML\n changes:\n+  - version: REPLACEME\n+    pr-url: https://github.com/nodejs/node/pull/56350\n+    description: Type stripping is enabled by default.\n   - version: v22.7.0\n     pr-url: https://github.com/nodejs/node/pull/54283\n     description: Added `--experimental-transform-types` flag.\n@@ -52,7 +55,7 @@ added: v22.6.0\n \n > Stability: 1.1 - Active development\n \n-The flag [`--experimental-strip-types`][] enables Node.js to run TypeScript\n+The flag [`--no-experimental-strip-types`][] prevents Node.js from running TypeScript\n files. By default Node.js will execute only files that contain no\n TypeScript features that require transformation, such as enums or namespaces.\n Node.js will replace inline type annotations with whitespace,\n@@ -181,8 +184,8 @@ with `#`.\n [CommonJS]: modules.md\n [ES Modules]: esm.md\n [Full TypeScript support]: #full-typescript-support\n-[`--experimental-strip-types`]: cli.md#--experimental-strip-types\n [`--experimental-transform-types`]: cli.md#--experimental-transform-types\n+[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types\n [`tsconfig` \"paths\"]: https://www.typescriptlang.org/tsconfig/#paths\n [`tsx`]: https://tsx.is/\n [`verbatimModuleSyntax`]: https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax\ndiff --git a/doc/node.1 b/doc/node.1\nindex aa36b2fdf55a..9f6ad04564fe 100644\n--- a/doc/node.1\n+++ b/doc/node.1\n@@ -186,9 +186,6 @@ Enable code coverage in the test runner.\n .It Fl -experimental-test-module-mocks\n Enable module mocking in the test runner.\n .\n-.It Fl -experimental-strip-types\n-Enable experimental type-stripping for TypeScript files.\n-.\n .It Fl -experimental-transform-types\n Enable transformation of TypeScript-only syntax into JavaScript code.\n .\n@@ -207,6 +204,9 @@ Disable top-level await keyword support in REPL.\n .It Fl -no-experimental-sqlite\n Disable the experimental node:sqlite module.\n .\n+.It Fl -no-experimental-strip-types\n+Disable experimental type-stripping for TypeScript files.\n+.\n .It Fl -experimental-vm-modules\n Enable experimental ES module support in VM module.\n .\ndiff --git a/src/node_options.cc b/src/node_options.cc\nindex 60d869de042b..189a03bd69b3 100644\n--- a/src/node_options.cc\n+++ b/src/node_options.cc\n@@ -857,7 +857,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {\n   AddOption(\"--experimental-strip-types\",\n             \"Experimental type-stripping for TypeScript files.\",\n             &EnvironmentOptions::experimental_strip_types,\n-            kAllowedInEnvvar);\n+            kAllowedInEnvvar,\n+            true);\n   AddOption(\"--experimental-transform-types\",\n             \"enable transformation of TypeScript-only\"\n             \"syntax into JavaScript code\",\ndiff --git a/src/node_options.h b/src/node_options.h\nindex 329b9834562a..8b9f8a825e61 100644\n--- a/src/node_options.h\n+++ b/src/node_options.h\n@@ -247,7 +247,7 @@ class EnvironmentOptions : public Options {\n \n   std::vector<std::string> preload_esm_modules;\n \n-  bool experimental_strip_types = false;\n+  bool experimental_strip_types = true;\n   bool experimental_transform_types = false;\n \n   std::vector<std::string> user_argv;\ndiff --git a/test/es-module/test-esm-loader-entry-url.mjs b/test/es-module/test-esm-loader-entry-url.mjs\nindex e0b931693654..f6be7bcf7eeb 100644\n--- a/test/es-module/test-esm-loader-entry-url.mjs\n+++ b/test/es-module/test-esm-loader-entry-url.mjs\n@@ -84,7 +84,7 @@ describe('--entry-url', { concurrency: true }, () => {\n \n     for (const url of typescriptUrls) {\n       await assertSpawnedProcess(\n-        ['--entry-url', '--experimental-strip-types', fixtures.fileURL(url)],\n+        ['--entry-url', fixtures.fileURL(url)],\n         {},\n         {\n           ...experimentalFeatureWarning,\ndiff --git a/test/es-module/test-esm-resolve-type.mjs b/test/es-module/test-esm-resolve-type.mjs\nindex 7ba1fcbf1437..22163bbd5def 100644\n--- a/test/es-module/test-esm-resolve-type.mjs\n+++ b/test/es-module/test-esm-resolve-type.mjs\n@@ -186,7 +186,7 @@ try {\n     [ 'qmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v'],\n     [ 'hmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '#Key'],\n     [ 'qhmod', 'index.js', 'imp.js', 'commonjs', 'module', 'module', '?k=v#h'],\n-    [ 'ts-mod-com', 'index.js', 'imp.ts', 'module', 'commonjs', undefined],\n+    [ 'ts-mod-com', 'index.js', 'imp.ts', 'module', 'commonjs', 'commonjs-typescript'],\n   ].forEach((testVariant) => {\n     const [\n       moduleName,\ndiff --git a/test/es-module/test-typescript-commonjs.mjs b/test/es-module/test-typescript-commonjs.mjs\nindex 8bdaaff62e8a..5b15860ab327 100644\n--- a/test/es-module/test-typescript-commonjs.mjs\n+++ b/test/es-module/test-typescript-commonjs.mjs\n@@ -7,7 +7,6 @@ if (!process.config.variables.node_use_amaro) skip('Requires Amaro');\n \n test('require a .ts file with explicit extension succeeds', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     'require(\"./test-typescript.ts\")',\n     '--no-warnings',\n@@ -22,7 +21,6 @@ test('require a .ts file with explicit extension succeeds', async () => {\n \n test('eval require a .ts file with implicit extension fails', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     'require(\"./test-typescript\")',\n     '--no-warnings',\n@@ -37,7 +35,6 @@ test('eval require a .ts file with implicit extension fails', async () => {\n \n test('eval require a .cts file with implicit extension fails', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     'require(\"./test-cts-typescript\")',\n     '--no-warnings',\n@@ -52,7 +49,6 @@ test('eval require a .cts file with implicit extension fails', async () => {\n \n test('require a .ts file with implicit extension fails', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/cts/test-extensionless-require.ts'),\n   ]);\n@@ -64,7 +60,6 @@ test('require a .ts file with implicit extension fails', async () => {\n \n test('expect failure of an .mts file with CommonJS syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/cts/test-cts-but-module-syntax.cts'),\n   ]);\n \n@@ -75,7 +70,6 @@ test('expect failure of an .mts file with CommonJS syntax', async () => {\n \n test('execute a .cts file importing a .cts file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/cts/test-require-commonjs.cts'),\n   ]);\n@@ -87,7 +81,6 @@ test('execute a .cts file importing a .cts file', async () => {\n \n test('execute a .cts file importing a .ts file export', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/cts/test-require-ts-file.cts'),\n   ]);\n@@ -99,7 +92,6 @@ test('execute a .cts file importing a .ts file export', async () => {\n \n test('execute a .cts file importing a .mts file export', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-experimental-require-module',\n     fixtures.path('typescript/cts/test-require-mts-module.cts'),\n   ]);\n@@ -111,7 +103,6 @@ test('execute a .cts file importing a .mts file export', async () => {\n \n test('execute a .cts file importing a .mts file export', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--experimental-require-module',\n     fixtures.path('typescript/cts/test-require-mts-module.cts'),\n   ]);\n@@ -122,7 +113,6 @@ test('execute a .cts file importing a .mts file export', async () => {\n \n test('expect failure of a .cts file in node_modules', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/cts/test-cts-node_modules.cts'),\n   ]);\n \n@@ -133,7 +123,6 @@ test('expect failure of a .cts file in node_modules', async () => {\n \n test('expect failure of a .ts file in node_modules', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/cts/test-ts-node_modules.cts'),\n   ]);\n \n@@ -144,7 +133,6 @@ test('expect failure of a .ts file in node_modules', async () => {\n \n test('expect failure of a .cts requiring esm without default type module', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-experimental-require-module',\n     fixtures.path('typescript/cts/test-mts-node_modules.cts'),\n   ]);\n@@ -156,7 +144,6 @@ test('expect failure of a .cts requiring esm without default type module', async\n \n test('expect failure of a .cts file requiring esm in node_modules', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--experimental-require-module',\n     fixtures.path('typescript/cts/test-mts-node_modules.cts'),\n   ]);\ndiff --git a/test/es-module/test-typescript-eval.mjs b/test/es-module/test-typescript-eval.mjs\nindex 64e334e001be..5c6f25bec4df 100644\n--- a/test/es-module/test-typescript-eval.mjs\n+++ b/test/es-module/test-typescript-eval.mjs\n@@ -6,7 +6,6 @@ if (!process.config.variables.node_use_amaro) skip('Requires Amaro');\n \n test('eval TypeScript ESM syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     `import util from 'node:util'\n     const text: string = 'Hello, TypeScript!'\n@@ -19,7 +18,6 @@ test('eval TypeScript ESM syntax', async () => {\n \n test('eval TypeScript ESM syntax with input-type module', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--input-type=module-typescript',\n     '--eval',\n     `import util from 'node:util'\n@@ -33,7 +31,6 @@ test('eval TypeScript ESM syntax with input-type module', async () => {\n \n test('eval TypeScript CommonJS syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     `const util = require('node:util');\n     const text: string = 'Hello, TypeScript!'\n@@ -45,7 +42,6 @@ test('eval TypeScript CommonJS syntax', async () => {\n \n test('eval TypeScript CommonJS syntax with input-type commonjs-typescript', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--input-type=commonjs-typescript',\n     '--eval',\n     `const util = require('node:util');\n@@ -59,7 +55,6 @@ test('eval TypeScript CommonJS syntax with input-type commonjs-typescript', asyn\n \n test('eval TypeScript CommonJS syntax by default', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     `const util = require('node:util');\n     const text: string = 'Hello, TypeScript!'\n@@ -73,7 +68,6 @@ test('eval TypeScript CommonJS syntax by default', async () => {\n \n test('TypeScript ESM syntax not specified', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     `import util from 'node:util'\n     const text: string = 'Hello, TypeScript!'\n@@ -85,7 +79,6 @@ test('TypeScript ESM syntax not specified', async () => {\n \n test('expect fail eval TypeScript CommonJS syntax with input-type module-typescript', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--input-type=module-typescript',\n     '--eval',\n     `const util = require('node:util');\n@@ -99,7 +92,6 @@ test('expect fail eval TypeScript CommonJS syntax with input-type module-typescr\n \n test('expect fail eval TypeScript ESM syntax with input-type commonjs-typescript', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--input-type=commonjs-typescript',\n     '--eval',\n     `import util from 'node:util'\n@@ -112,7 +104,6 @@ test('expect fail eval TypeScript ESM syntax with input-type commonjs-typescript\n \n test('check syntax error is thrown when passing invalid syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     'enum Foo { A, B, C }']);\n   strictEqual(result.stdout, '');\n@@ -123,7 +114,6 @@ test('check syntax error is thrown when passing invalid syntax', async () => {\n \n test('check syntax error is thrown when passing invalid syntax with --input-type=module-typescript', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--input-type=module-typescript',\n     '--eval',\n     'enum Foo { A, B, C }']);\n@@ -134,7 +124,6 @@ test('check syntax error is thrown when passing invalid syntax with --input-type\n \n test('check syntax error is thrown when passing invalid syntax with --input-type=commonjs-typescript', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--input-type=commonjs-typescript',\n     '--eval',\n     'enum Foo { A, B, C }']);\n@@ -145,7 +134,6 @@ test('check syntax error is thrown when passing invalid syntax with --input-type\n \n test('should not parse TypeScript with --type-module=commonjs', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--input-type=commonjs',\n     '--eval',\n     `enum Foo {}`]);\n@@ -158,7 +146,6 @@ test('should not parse TypeScript with --type-module=commonjs', async () => {\n \n test('should not parse TypeScript with --type-module=module', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--input-type=module',\n     '--eval',\n     `enum Foo {}`]);\n@@ -171,7 +158,6 @@ test('should not parse TypeScript with --type-module=module', async () => {\n \n test('check warning is emitted when eval TypeScript CommonJS syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     `const util = require('node:util');\n     const text: string = 'Hello, TypeScript!'\n@@ -183,7 +169,6 @@ test('check warning is emitted when eval TypeScript CommonJS syntax', async () =\n \n test('code is throwing a non Error is rethrown', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     `throw null;`]);\n   doesNotMatch(result.stderr, /node:internal\\/process\\/execution/);\n@@ -193,7 +178,6 @@ test('code is throwing a non Error is rethrown', async () => {\n \n test('code is throwing an error with customized accessors', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     `throw Object.defineProperty(new Error, \"stack\", { set() {throw this} });`]);\n \n@@ -205,7 +189,6 @@ test('code is throwing an error with customized accessors', async () => {\n \n test('typescript code is throwing an error', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     `const foo: string =  'Hello, TypeScript!'; throw new Error(foo);`]);\n \n@@ -216,7 +199,6 @@ test('typescript code is throwing an error', async () => {\n \n test('typescript ESM code is throwing a syntax error at runtime', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     'import util from \"node:util\"; function foo(){}; throw new SyntaxError(foo<Number>(1));']);\n   // Trick by passing ambiguous syntax to see if evaluated in TypeScript or JavaScript\n@@ -230,7 +212,6 @@ test('typescript ESM code is throwing a syntax error at runtime', async () => {\n \n test('typescript CJS code is throwing a syntax error at runtime', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--eval',\n     'const util = require(\"node:util\"); function foo(){}; throw new SyntaxError(foo<Number>(1));']);\n   // Trick by passing ambiguous syntax to see if evaluated in TypeScript or JavaScript\ndiff --git a/test/es-module/test-typescript-module.mjs b/test/es-module/test-typescript-module.mjs\nindex 8a99c2e9576a..27e3e3567391 100644\n--- a/test/es-module/test-typescript-module.mjs\n+++ b/test/es-module/test-typescript-module.mjs\n@@ -7,7 +7,6 @@ if (!process.config.variables.node_use_amaro) skip('Requires Amaro');\n \n test('expect failure of a .mts file with CommonJS syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/mts/test-mts-but-commonjs-syntax.mts'),\n   ]);\n \n@@ -18,7 +17,6 @@ test('expect failure of a .mts file with CommonJS syntax', async () => {\n \n test('execute an .mts file importing an .mts file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/mts/test-import-module.mts'),\n   ]);\n \n@@ -29,7 +27,6 @@ test('execute an .mts file importing an .mts file', async () => {\n \n test('execute an .mts file importing a .ts file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/mts/test-import-ts-file.mts'),\n   ]);\n@@ -41,7 +38,6 @@ test('execute an .mts file importing a .ts file', async () => {\n \n test('execute an .mts file importing a .cts file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/mts/test-import-commonjs.mts'),\n   ]);\n@@ -53,7 +49,6 @@ test('execute an .mts file importing a .cts file', async () => {\n \n test('execute an .mts file from node_modules', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/mts/test-mts-node_modules.mts'),\n   ]);\n \n@@ -64,7 +59,6 @@ test('execute an .mts file from node_modules', async () => {\n \n test('execute a .cts file from node_modules', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/mts/test-cts-node_modules.mts'),\n   ]);\n \n@@ -75,7 +69,6 @@ test('execute a .cts file from node_modules', async () => {\n \n test('execute a .ts file from node_modules', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/mts/test-ts-node_modules.mts'),\n   ]);\n \n@@ -86,7 +79,6 @@ test('execute a .ts file from node_modules', async () => {\n \n test('execute an empty .ts file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-empty-file.ts'),\n   ]);\n@@ -98,7 +90,6 @@ test('execute an empty .ts file', async () => {\n \n test('execute .ts file importing a module', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-import-fs.ts'),\n   ]);\ndiff --git a/test/es-module/test-typescript.mjs b/test/es-module/test-typescript.mjs\nindex dbcbebbb2682..49704e79afb5 100644\n--- a/test/es-module/test-typescript.mjs\n+++ b/test/es-module/test-typescript.mjs\n@@ -3,15 +3,15 @@ import * as fixtures from '../common/fixtures.mjs';\n import { match, strictEqual } from 'node:assert';\n import { test } from 'node:test';\n \n-test('expect process.features.typescript to be \\'strip\\' when --experimental-strip-types', async () => {\n+test('expect process.features.typescript to be false when --no-experimental-strip-types ', async () => {\n   const result = await spawnPromisified(process.execPath, [\n     '--no-warnings',\n-    '--experimental-strip-types',\n+    '--no-experimental-strip-types',\n     fixtures.path('typescript/echo-process-features-typescript.cjs'),\n   ]);\n \n   strictEqual(result.stderr, '');\n-  strictEqual(result.stdout, process.config.variables.node_use_amaro ? 'strip\\n' : 'false\\n');\n+  strictEqual(result.stdout, 'false\\n');\n   strictEqual(result.code, 0);\n });\n \n@@ -32,7 +32,6 @@ if (!process.config.variables.node_use_amaro) skip('Requires Amaro');\n \n test('execute a TypeScript file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-typescript.ts'),\n   ]);\n \n@@ -43,7 +42,6 @@ test('execute a TypeScript file', async () => {\n \n test('execute a TypeScript file with imports', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-import-foo.ts'),\n   ]);\n@@ -67,7 +65,6 @@ test('execute a TypeScript file with imports', async () => {\n \n test('execute a TypeScript file with node_modules', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-typescript-node-modules.ts'),\n   ]);\n@@ -79,7 +76,6 @@ test('execute a TypeScript file with node_modules', async () => {\n \n test('expect error when executing a TypeScript file with imports with no extensions', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-import-no-extension.ts'),\n   ]);\n \n@@ -90,7 +86,6 @@ test('expect error when executing a TypeScript file with imports with no extensi\n \n test('expect error when executing a TypeScript file with enum', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-enums.ts'),\n   ]);\n \n@@ -102,7 +97,6 @@ test('expect error when executing a TypeScript file with enum', async () => {\n \n test('expect error when executing a TypeScript file with experimental decorators', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-experimental-decorators.ts'),\n   ]);\n   // This error should be thrown at runtime\n@@ -113,7 +107,6 @@ test('expect error when executing a TypeScript file with experimental decorators\n \n test('expect error when executing a TypeScript file with namespaces', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-namespaces.ts'),\n   ]);\n   // This error should be thrown during transformation\n@@ -124,7 +117,6 @@ test('expect error when executing a TypeScript file with namespaces', async () =\n \n test('execute a TypeScript file with type definition', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-import-types.ts'),\n   ]);\n@@ -136,7 +128,6 @@ test('execute a TypeScript file with type definition', async () => {\n \n test('execute a TypeScript file with type definition but no type keyword', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-import-no-type-keyword.ts'),\n   ]);\n \n@@ -147,7 +138,6 @@ test('execute a TypeScript file with type definition but no type keyword', async\n \n test('execute a TypeScript file with CommonJS syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-commonjs-parsing.ts'),\n   ]);\n@@ -158,7 +148,6 @@ test('execute a TypeScript file with CommonJS syntax', async () => {\n \n test('execute a TypeScript file with ES module syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-module-typescript.ts'),\n   ]);\n@@ -170,7 +159,6 @@ test('execute a TypeScript file with ES module syntax', async () => {\n \n test('expect failure of a TypeScript file requiring ES module syntax', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--experimental-require-module',\n     fixtures.path('typescript/ts/test-require-module.ts'),\n   ]);\n@@ -181,7 +169,6 @@ test('expect failure of a TypeScript file requiring ES module syntax', async ()\n \n test('expect stack trace of a TypeScript file to be correct', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-whitespacing.ts'),\n   ]);\n \n@@ -192,7 +179,6 @@ test('expect stack trace of a TypeScript file to be correct', async () => {\n \n test('execute CommonJS TypeScript file from node_modules with require-module', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-import-ts-node-modules.ts'),\n   ]);\n \n@@ -203,7 +189,6 @@ test('execute CommonJS TypeScript file from node_modules with require-module', a\n \n test('execute a TypeScript file with CommonJS syntax requiring .cts', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-require-cts.ts'),\n   ]);\n@@ -215,7 +200,6 @@ test('execute a TypeScript file with CommonJS syntax requiring .cts', async () =\n \n test('execute a TypeScript file with CommonJS syntax requiring .mts', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-require-mts.ts'),\n   ]);\n \n@@ -225,7 +209,6 @@ test('execute a TypeScript file with CommonJS syntax requiring .mts', async () =\n \n test('execute a TypeScript file with CommonJS syntax requiring .mts using require-module', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--experimental-require-module',\n     fixtures.path('typescript/ts/test-require-mts.ts'),\n   ]);\n@@ -236,7 +219,6 @@ test('execute a TypeScript file with CommonJS syntax requiring .mts using requir\n \n test('execute a TypeScript file with CommonJS syntax requiring .cts using commonjs', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-require-cts.ts'),\n   ]);\n@@ -249,7 +231,6 @@ test('execute a TypeScript file with CommonJS syntax requiring .cts using common\n test('execute a TypeScript file with CommonJS syntax requiring .mts with require-module',\n      async () => {\n        const result = await spawnPromisified(process.execPath, [\n-         '--experimental-strip-types',\n          '--no-warnings',\n          fixtures.path('typescript/ts/test-require-cts.ts'),\n        ]);\n@@ -261,7 +242,6 @@ test('execute a TypeScript file with CommonJS syntax requiring .mts with require\n \n test('execute a JavaScript file importing a cjs TypeScript file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/issue-54457.mjs'),\n   ]);\n@@ -277,7 +257,6 @@ test('execute a TypeScript test mocking module', { skip: isWindows && process.ar\n   const result = await spawnPromisified(process.execPath, [\n     '--test',\n     '--experimental-test-module-mocks',\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-mock-module.ts'),\n   ]);\n@@ -287,13 +266,12 @@ test('execute a TypeScript test mocking module', { skip: isWindows && process.ar\n   strictEqual(result.code, 0);\n });\n \n-test('expect process.features.typescript to be false without type-stripping', async () => {\n-  strictEqual(process.features.typescript, false);\n+test('expect process.features.typescript to be strip', async () => {\n+  strictEqual(process.features.typescript, 'strip');\n });\n \n test('execute a TypeScript file with union types', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     fixtures.path('typescript/ts/test-union-types.ts'),\n   ]);\n@@ -311,7 +289,6 @@ test('execute a TypeScript file with union types', async () => {\n \n test('expect error when executing a TypeScript file with generics', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     fixtures.path('typescript/ts/test-parameter-properties.ts'),\n   ]);\n \n@@ -326,7 +303,6 @@ test('expect error when executing a TypeScript file with generics', async () =>\n \n test('execute a TypeScript loader and a .ts file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     '--import',\n     fixtures.fileURL('typescript/ts/test-loader.ts'),\n@@ -339,7 +315,6 @@ test('execute a TypeScript loader and a .ts file', async () => {\n \n test('execute a TypeScript loader and a .js file', async () => {\n   const result = await spawnPromisified(process.execPath, [\n-    '--experimental-strip-types',\n     '--no-warnings',\n     '--import',\n     fixtures.fileURL('typescript/ts/test-loader.ts'),\ndiff --git a/test/fixtures/eval/eval_messages.snapshot b/test/fixtures/eval/eval_messages.snapshot\nindex 4b4069219f03..e3976d69fd93 100644\n--- a/test/fixtures/eval/eval_messages.snapshot\n+++ b/test/fixtures/eval/eval_messages.snapshot\n@@ -2,11 +2,17 @@\n [eval]:1\n with(this){__filename}\n ^^^^\n-\n-SyntaxError: Strict mode code may not include a with statement\n+  x The 'with' statement is not supported. All symbols in a 'with' block will have type 'any'.\n+   ,----\n+ 1 | with(this){__filename}\n+   : ^^^^\n+   `----\n \n \n+Caused by:\n+    failed to parse\n \n+SyntaxError: Strict mode code may not include a with statement\n \n \n \ndiff --git a/test/module-hooks/test-module-hooks-preload.js b/test/module-hooks/test-module-hooks-preload.js\nindex a88cd672a59a..17999c0a5577 100644\n--- a/test/module-hooks/test-module-hooks-preload.js\n+++ b/test/module-hooks/test-module-hooks-preload.js\n@@ -16,7 +16,6 @@ spawnSyncAndAssert(process.execPath,\n \n spawnSyncAndAssert(process.execPath,\n                    [\n-                     '--experimental-strip-types',\n                      '--no-experimental-transform-types',\n                      '--require',\n                      fixtures.path('module-hooks', 'register-typescript-hooks.js'),\n@@ -38,7 +37,6 @@ spawnSyncAndAssert(process.execPath,\n \n spawnSyncAndAssert(process.execPath,\n                    [\n-                     '--experimental-strip-types',\n                      '--no-experimental-transform-types',\n                      '--import',\n                      fixtures.fileURL('module-hooks', 'register-typescript-hooks.js'),\ndiff --git a/test/module-hooks/test-module-hooks-resolve-load-import-inline-typescript-override.mjs b/test/module-hooks/test-module-hooks-resolve-load-import-inline-typescript-override.mjs\nindex 18e8d20ef2d9..172c670ab128 100644\n--- a/test/module-hooks/test-module-hooks-resolve-load-import-inline-typescript-override.mjs\n+++ b/test/module-hooks/test-module-hooks-resolve-load-import-inline-typescript-override.mjs\n@@ -1,4 +1,4 @@\n-// Flags: --experimental-strip-types --no-experimental-transform-types\n+// Flags: --no-experimental-transform-types\n // This tests that a mini TypeScript loader works with resolve and\n // load hooks when overriding --experimental-strip-types in ESM.\n import '../common/index.mjs';\ndiff --git a/test/module-hooks/test-module-hooks-resolve-load-require-inline-typescript-override.js b/test/module-hooks/test-module-hooks-resolve-load-require-inline-typescript-override.js\nindex 967e362c7041..47a100d0489b 100644\n--- a/test/module-hooks/test-module-hooks-resolve-load-require-inline-typescript-override.js\n+++ b/test/module-hooks/test-module-hooks-resolve-load-require-inline-typescript-override.js\n@@ -1,5 +1,5 @@\n 'use strict';\n-// Flags: --experimental-strip-types --no-experimental-transform-types\n+// Flags: --no-experimental-transform-types\n // This tests that a mini TypeScript loader works with resolve and\n // load hooks when overriding --experimental-strip-types in CJS.\n \ndiff --git a/test/parallel/test-inspector-strip-types.js b/test/parallel/test-inspector-strip-types.js\nindex c03a58345e59..323719057a59 100644\n--- a/test/parallel/test-inspector-strip-types.js\n+++ b/test/parallel/test-inspector-strip-types.js\n@@ -12,7 +12,7 @@ const scriptPath = fixtures.path('typescript/ts/test-typescript.ts');\n \n async function runTest() {\n   const child = new NodeInstance(\n-    ['--inspect-brk=0', '--experimental-strip-types'],\n+    ['--inspect-brk=0'],\n     undefined,\n     scriptPath);\n \ndiff --git a/test/parallel/test-runner-cli.js b/test/parallel/test-runner-cli.js\nindex f6c953e74bcc..c6c08bd7b8d8 100644\n--- a/test/parallel/test-runner-cli.js\n+++ b/test/parallel/test-runner-cli.js\n@@ -46,6 +46,7 @@ for (const isolation of ['none', 'process']) {\n   {\n     // Should match files with \"-test.(c|m)js\" suffix.\n     const args = ['--test', '--test-reporter=tap',\n+                  `--no-experimental-strip-types`,\n                   `--test-isolation=${isolation}`];\n     const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });\n \ndiff --git a/test/parallel/test-runner-coverage-default-exclusion.mjs b/test/parallel/test-runner-coverage-default-exclusion.mjs\nindex 621e49412d5c..44e5f7600d32 100644\n--- a/test/parallel/test-runner-coverage-default-exclusion.mjs\n+++ b/test/parallel/test-runner-coverage-default-exclusion.mjs\n@@ -45,6 +45,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {\n       '--experimental-test-coverage',\n       '--test-coverage-exclude=!test/**',\n       '--test-reporter=tap',\n+      '--no-experimental-strip-types',\n     ];\n     const result = spawnSync(process.execPath, args, {\n       env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },\n@@ -70,6 +71,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {\n     ].join('\\n');\n \n     const args = [\n+      '--no-experimental-strip-types',\n       '--test',\n       '--experimental-test-coverage',\n       '--test-reporter=tap',\n@@ -84,7 +86,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {\n     assert.strictEqual(result.status, 0);\n   });\n \n-  it('should exclude ts test files when using --experimental-strip-types', async () => {\n+  it('should exclude ts test files', async () => {\n     const report = [\n       '# start of coverage report',\n       '# --------------------------------------------------------------',\n@@ -100,7 +102,6 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {\n     const args = [\n       '--test',\n       '--experimental-test-coverage',\n-      '--experimental-strip-types',\n       '--disable-warning=ExperimentalWarning',\n       '--test-reporter=tap',\n     ];\ndiff --git a/test/parallel/test-runner-coverage-source-map.js b/test/parallel/test-runner-coverage-source-map.js\nindex 1f6e6d2c81fb..e3b0676a557a 100644\n--- a/test/parallel/test-runner-coverage-source-map.js\n+++ b/test/parallel/test-runner-coverage-source-map.js\n@@ -25,6 +25,7 @@ const flags = [\n   '--test-coverage-exclude=!test/**',\n   '--test-reporter',\n   'tap',\n+  '--no-experimental-strip-types',\n ];\n \n describe('Coverage with source maps', async () => {\n",
+      "url": "https://github.com/nodejs/node/pull/56350/files"
+    },
+    {
+      "id": "pr-meta",
+      "label": "PR の目的と比較範囲",
+      "locator": "https://github.com/nodejs/node/pull/56350",
+      "excerpt": "{\n  \"baseRefOid\": \"1d1d8f2df35d2b48fff0d822980e937dfd66f9ec\",\n  \"body\": \"It's time to enable it by default to catch some more bugs, currently there are no open issues.\\r\\nI think it's a semver minor change.\\r\\n\\r\\nFixes: https://github.com/nodejs/typescript/issues/17\\r\\n\\r\\n@nodejs/tsc for visibility\\n\\nNotable change section:\\n\\nThis change enables the flag `--experimental-strip-types` by default.\\nNode.js will be able to execute TypeScript files without additional configuration. Note that there are some limitations in the supported syntax documented at https://nodejs.org/api/typescript.html#type-stripping\\nThis feature is experimental and is subject to change.\",\n  \"headRefOid\": \"d847c3201db550830f1b90fdc4e0e060e1ce88da\",\n  \"number\": 56350,\n  \"title\": \"module: unflag --experimental-strip-types\",\n  \"url\": \"https://github.com/nodejs/node/pull/56350\"\n}\n実際の比較元 merge-base: da3f388c1485ae03b0bc3dfb3fd79dc37cc91dfd",
+      "url": "https://github.com/nodejs/node/pull/56350"
+    },
+    {
+      "id": "issue-source",
+      "label": "関連 Issue #17",
+      "locator": "https://github.com/nodejs/typescript/issues/17",
+      "excerpt": "Unflag `--experimental-strip-types`\nIssue to track the work needed to unflag `--experimental-strip-types`, blockers and other considerations.\n\n@nodejs/typescript \n\n- [ ] What steps a developer should take to publish that code on npm. @JakobJingleheimer https://github.com/nodejs/nodejs.org/pull/7279\n- [x] Final ack from the TypeScript team https://github.com/nodejs/typescript/pull/19\n- [x] Document `moduleResolution` and other TS configurations. https://github.com/nodejs/node/pull/55534\n- [x] Notify other popular TypeScript loaders and ask for comments (@privatenumber, @blakeembrey, @nicolo-ribaudo) .\n- [x] Verify if this would *ever* work for frontend metaframeworks and identify if we need to make changes to our design _now_.\n- [x] https://github.com/nodejs/node/issues/54645\n",
+      "url": "https://github.com/nodejs/typescript/issues/17"
+    },
+    {
+      "id": "code-before-source",
+      "label": "変更前の既定値",
+      "locator": "da3f388c1485ae03b0bc3dfb3fd79dc37cc91dfd:src/node_options.h:L247-L253",
+      "excerpt": "\n  std::vector<std::string> preload_esm_modules;\n\n  bool experimental_strip_types = false;\n  bool experimental_transform_types = false;\n\n  std::vector<std::string> user_argv;",
+      "url": "https://github.com/nodejs/node/blob/da3f388c1485ae03b0bc3dfb3fd79dc37cc91dfd/src/node_options.h#L247-L253"
+    },
+    {
+      "id": "code-after-source",
+      "label": "変更後の既定値",
+      "locator": "d847c3201db550830f1b90fdc4e0e060e1ce88da:src/node_options.h:L247-L253",
+      "excerpt": "\n  std::vector<std::string> preload_esm_modules;\n\n  bool experimental_strip_types = true;\n  bool experimental_transform_types = false;\n\n  std::vector<std::string> user_argv;",
+      "url": "https://github.com/nodejs/node/blob/d847c3201db550830f1b90fdc4e0e060e1ce88da/src/node_options.h#L247-L253"
+    }
+  ],
+  "targets": [
+    {
+      "id": "overview.title",
+      "view": "overview",
+      "path": ["全体像", "今回の変更"],
+      "label": "今回の変更",
+      "text": "型を消して、そのまま実行する。",
+      "certainty": "inference",
+      "sourceIds": ["raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "overview.purpose",
+      "view": "overview",
+      "path": ["全体像", "目的"],
+      "label": "目的",
+      "text": "Node.js で TypeScript の型除去を既定で有効にし、追加フラグなしで .ts を実行できるようにする。",
+      "certainty": "inference",
+      "sourceIds": ["pr-meta"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "overview.before",
+      "view": "overview",
+      "path": ["全体像", "変更前"],
+      "label": "変更前",
+      "text": "型除去の既定値は false。TypeScript の実行には有効化フラグが必要。",
+      "certainty": "fact",
+      "sourceIds": ["code-before-source", "raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "overview.after",
+      "view": "overview",
+      "path": ["全体像", "変更後"],
+      "label": "変更後",
+      "text": "型除去の既定値は true。無効化フラグがない場合は、型を含むファイルを実行できる。",
+      "certainty": "fact",
+      "sourceIds": ["code-after-source", "raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "overview.flow.1",
+      "view": "overview",
+      "path": ["全体像", "どう実現するか", "既定値"],
+      "label": "既定値",
+      "text": "experimental_strip_types を true に変える。",
+      "certainty": "inference",
+      "sourceIds": ["raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": [],
+      "linkIds": ["code.skill"]
+    },
+    {
+      "id": "overview.flow.2",
+      "view": "overview",
+      "path": ["全体像", "どう実現するか", "明示的な無効化"],
+      "label": "明示的な無効化",
+      "text": "CLI・環境変数で有効化を制御できるようにする。",
+      "certainty": "inference",
+      "sourceIds": ["raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": [],
+      "linkIds": ["change.reference"]
+    },
+    {
+      "id": "overview.flow.3",
+      "view": "overview",
+      "path": ["全体像", "どう実現するか", "文書と試験"],
+      "label": "文書と試験",
+      "text": "フラグなしでの例・試験へ変更し、無効化の用例も残す。",
+      "certainty": "inference",
+      "sourceIds": ["raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": [],
+      "linkIds": ["change.reference"]
+    },
+    {
+      "id": "overview.question",
+      "view": "overview",
+      "path": ["全体像", "レビューの論点"],
+      "label": "レビューの論点",
+      "text": "型除去は型検査を行わない。サポート対象の構文、無効化時の経路、npm での配布条件を確認したい。",
+      "certainty": "unverified",
+      "sourceIds": ["raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "change.skill",
+      "view": "details",
+      "path": ["変更の詳細", "型除去の既定値"],
+      "label": "型除去の既定値",
+      "text": "EnvironmentOptions の既定値を false から true に変える。",
+      "certainty": "fact",
+      "sourceIds": ["raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "code.skill",
+      "view": "details",
+      "path": ["変更の詳細", "src/node_options.h", "変更後"],
+      "label": "node_options.h · 変更後",
+      "text": "既定値を変える src/node_options.h の L247–L253。",
+      "certainty": "fact",
+      "sourceIds": ["code-after-source"],
+      "requirementIds": [],
+      "evidenceIds": [],
+      "code": {
+        "file": "src/node_options.h",
+        "side": "after",
+        "revision": "d847c3201db550830f1b90fdc4e0e060e1ce88da",
+        "lines": [
+          {
+            "id": "pr.after.L247",
+            "number": 247,
+            "text": "",
+            "change": "context"
+          },
+          {
+            "id": "pr.after.L248",
+            "number": 248,
+            "text": "  std::vector<std::string> preload_esm_modules;",
+            "change": "context"
+          },
+          {
+            "id": "pr.after.L249",
+            "number": 249,
+            "text": "",
+            "change": "context"
+          },
+          {
+            "id": "pr.after.L250",
+            "number": 250,
+            "text": "  bool experimental_strip_types = true;",
+            "change": "added"
+          },
+          {
+            "id": "pr.after.L251",
+            "number": 251,
+            "text": "  bool experimental_transform_types = false;",
+            "change": "context"
+          },
+          {
+            "id": "pr.after.L252",
+            "number": 252,
+            "text": "",
+            "change": "context"
+          },
+          {
+            "id": "pr.after.L253",
+            "number": 253,
+            "text": "  std::vector<std::string> user_argv;",
+            "change": "context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "change.reference",
+      "view": "details",
+      "path": ["変更の詳細", "CLI・文書・テストの移行"],
+      "label": "CLI・文書・テストの移行",
+      "text": "有効化フラグを前提とする用例と試験を変更し、明示的な無効化経路を追加する。具体的な全変更は PR の元の差分から読める。",
+      "certainty": "fact",
+      "sourceIds": ["raw-diff"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "requirement.length",
+      "view": "requirements",
+      "path": ["要件との対応", "TS-01"],
+      "label": "フラグなしの実行",
+      "text": "追加設定なしで TypeScript ファイルを実行できるようにする。",
+      "certainty": "fact",
+      "sourceIds": ["pr-meta"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "expectation.length",
+      "view": "requirements",
+      "path": ["要件との対応", "TS-01", "期待結果"],
+      "label": "期待結果",
+      "text": "型除去に対応する .ts を node file.ts で実行できる。",
+      "certainty": "fact",
+      "sourceIds": ["pr-meta"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "evidence.host",
+      "view": "overview",
+      "path": ["全体像", "確認根拠", "候補版の実行"],
+      "label": "候補版での動作",
+      "text": "この PR の候補版をビルドして実行する検証は未実施。PR に試験変更はあるが、成功記録を取得したとは扱わない。",
+      "certainty": "unverified",
+      "sourceIds": [],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "pr.before",
+      "view": "details",
+      "path": ["変更の詳細", "node_options.h", "変更前"],
+      "label": "node_options.h · 変更前",
+      "text": "変更前の既定値。",
+      "certainty": "fact",
+      "sourceIds": ["code-before-source"],
+      "requirementIds": [],
+      "evidenceIds": [],
+      "code": {
+        "file": "src/node_options.h",
+        "side": "before",
+        "revision": "da3f388c1485ae03b0bc3dfb3fd79dc37cc91dfd",
+        "lines": [
+          {
+            "id": "pr.before.L247",
+            "number": 247,
+            "text": "",
+            "change": "context"
+          },
+          {
+            "id": "pr.before.L248",
+            "number": 248,
+            "text": "  std::vector<std::string> preload_esm_modules;",
+            "change": "context"
+          },
+          {
+            "id": "pr.before.L249",
+            "number": 249,
+            "text": "",
+            "change": "context"
+          },
+          {
+            "id": "pr.before.L250",
+            "number": 250,
+            "text": "  bool experimental_strip_types = false;",
+            "change": "removed"
+          },
+          {
+            "id": "pr.before.L251",
+            "number": 251,
+            "text": "  bool experimental_transform_types = false;",
+            "change": "context"
+          },
+          {
+            "id": "pr.before.L252",
+            "number": 252,
+            "text": "",
+            "change": "context"
+          },
+          {
+            "id": "pr.before.L253",
+            "number": 253,
+            "text": "  std::vector<std::string> user_argv;",
+            "change": "context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "requirement.distribution",
+      "view": "requirements",
+      "path": ["要件との対応", "TS-02", "Issue #17 の未完項目"],
+      "label": "Issue #17 の未完項目",
+      "text": "開発者が npm へコードを公開するための手順。",
+      "certainty": "fact",
+      "sourceIds": ["issue-source"],
+      "requirementIds": [],
+      "evidenceIds": []
+    },
+    {
+      "id": "expectation.distribution",
+      "view": "requirements",
+      "path": ["要件との対応", "TS-02", "期待結果"],
+      "label": "期待結果",
+      "text": "npm 公開時の手順を資料から確認できる。Issue の未完項目で、この PR に対応する変更は特定できていない。",
+      "certainty": "fact",
+      "sourceIds": ["issue-source"],
+      "requirementIds": [],
+      "evidenceIds": []
+    }
+  ],
+  "overview": {
+    "titleId": "overview.title",
+    "purposeId": "overview.purpose",
+    "beforeId": "overview.before",
+    "afterId": "overview.after",
+    "flowIds": ["overview.flow.1", "overview.flow.2", "overview.flow.3"],
+    "questionIds": ["overview.question"],
+    "evidenceIds": ["evidence-host-record"]
+  },
+  "changes": [
+    {
+      "id": "change-unit-skill",
+      "targetId": "change.skill",
+      "beforeCodeId": "pr.before",
+      "afterCodeId": "code.skill",
+      "requirementIds": ["TS-01"],
+      "evidenceIds": ["evidence-host-record"]
+    },
+    {
+      "id": "change-unit-reference",
+      "targetId": "change.reference",
+      "requirementIds": ["TS-01"],
+      "evidenceIds": []
+    }
+  ],
+  "requirements": [
+    {
+      "id": "TS-01",
+      "targetId": "requirement.length",
+      "expectationId": "expectation.length",
+      "changeIds": ["change-unit-skill", "change-unit-reference"],
+      "evidenceIds": ["evidence-host-record"]
+    },
+    {
+      "id": "TS-02",
+      "targetId": "requirement.distribution",
+      "expectationId": "expectation.distribution",
+      "changeIds": [],
+      "evidenceIds": []
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence-host-record",
+      "targetId": "evidence.host",
+      "status": "unverified",
+      "method": "対象版をビルドしてフラグなしで .ts を実行",
+      "conditions": "d847c3201db550830f1b90fdc4e0e060e1ce88da",
+      "result": "このレポートの作成者による候補版の実行は未実施"
+    }
+  ]
+}
