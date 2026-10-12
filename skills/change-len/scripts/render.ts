@@ -12,9 +12,21 @@ import {
 import { createReviewTools } from "./review-state.ts";
 import type { ReviewState } from "./review-state.ts";
 import { prepareComparison } from "./compare.ts";
+import { localCodeLinks } from "./code-links.ts";
 
-export function renderReport(input: unknown, saved?: ReviewState): string {
+export type RenderOptions = { vscodeLocal?: boolean; repo?: string };
+
+export function renderReport(
+  input: unknown,
+  saved?: ReviewState,
+  options: RenderOptions = {},
+): string {
   const report = validateReport(input);
+  if (options.vscodeLocal && !options.repo)
+    throw new Error("--vscode-local には --repo <repository> が必要です");
+  const codeLinks = options.vscodeLocal
+    ? localCodeLinks(report, options.repo!)
+    : {};
   const state = saved
     ? createReviewTools().validate(saved)
     : createReviewTools().empty();
@@ -53,7 +65,7 @@ export function renderReport(input: unknown, saved?: ReviewState): string {
 <section id="records-dialog" class="overlay" role="dialog" aria-modal="true" aria-labelledby="records-title" hidden><div class="sheet"><header class="dialog-header"><h2 id="records-title">コメントの保存・復元</h2><button data-close-records>閉じる</button></header><div class="dialog-body"><p>元の版・対象・コメントとレビュー済み版をまとめて保存します。変更・移動・削除された対象は下で確認できます。</p><p id="record-status" role="status"></p><label for="review-export">保存する JSON（全文を選択して保存できます）</label><textarea id="review-export" readonly></textarea><button data-download>JSON を保存</button><button data-select-records>JSON 全文を選択</button><label for="review-file">JSON ファイルから復元</label><input id="review-file" type="file" accept=".json,application/json"><label for="review-import">または JSON を貼り付け</label><textarea id="review-import"></textarea><button data-restore>JSON を復元</button><h3>引継ぎの確認待ち</h3><div id="pending-comments"></div><button data-close-records>閉じる</button></div></div></section>
 <section id="prompt-dialog" class="overlay" role="dialog" aria-modal="true" aria-labelledby="prompt-title" hidden><div class="sheet"><header class="dialog-header"><h2 id="prompt-title">修正依頼</h2><button data-close-prompt>閉じる</button></header><div class="dialog-body"><p id="copy-status" role="status"></p><label for="prompt-output">完成した依頼文（選択して手動コピーできます）</label><textarea id="prompt-output" readonly></textarea><button data-select-prompt>全文を選択</button><button data-close-prompt>閉じる</button></div></div></section>
 <section id="source-dialog" class="overlay" role="dialog" aria-modal="true" aria-labelledby="source-title" hidden><div class="sheet"><header class="dialog-header"><h2 id="source-title"></h2><button data-close-source>閉じる</button></header><div class="dialog-body"><p id="source-locator"></p><pre id="source-excerpt"></pre><a id="source-url" target="_blank" rel="noopener noreferrer" hidden>外部の原文を開く ↗（通信が必要）</a><button data-close-source>閉じる</button></div></div></section>
-<script type="application/json" id="review-state-data">${stateData}</script><script type="application/json" id="report-data">${data}</script><script>${script}</script></body></html>\n`;
+<script type="application/json" id="review-state-data">${stateData}</script><script type="application/json" id="report-data">${data}</script><script type="application/json" id="code-link-data">${escapeJSON(codeLinks)}</script><script>${script}</script></body></html>\n`;
 }
 
 if (
@@ -63,23 +75,39 @@ if (
 ) {
   try {
     const [input, output, ...extra] = process.argv.slice(2);
-    if (
-      !input ||
-      !output ||
-      (extra.length !== 0 &&
-        (extra.length !== 4 ||
-          extra[0] !== "--review-state" ||
-          extra[2] !== "--repo"))
-    )
+    const usage =
+      "使い方: node render.ts <report.json> <review.html> [--vscode-local] [--review-state <review-state.json>] [--repo <repository>]";
+    if (!input || !output) throw new Error(usage);
+    const options: RenderOptions = {};
+    let savedPath: string | undefined;
+    const seen = new Set<string>();
+    for (let i = 0; i < extra.length; i++) {
+      const flag = extra[i];
+      if (seen.has(flag)) throw new Error(usage);
+      seen.add(flag);
+      if (flag === "--vscode-local") options.vscodeLocal = true;
+      else if (flag === "--repo" || flag === "--review-state") {
+        const value = extra[++i];
+        if (!value || value.startsWith("--")) throw new Error(usage);
+        if (flag === "--repo") options.repo = value;
+        else savedPath = value;
+      } else throw new Error(usage);
+    }
+    if ((options.vscodeLocal || savedPath) && !options.repo)
       throw new Error(
-        "使い方: node render.ts <report.json> <review.html> [--review-state <review-state.json> --repo <repository>]",
+        "--vscode-local / --review-state には --repo <repository> が必要です",
       );
+    if (options.repo && !options.vscodeLocal && !savedPath)
+      throw new Error(usage);
     let report = validateReport(JSON.parse(readFileSync(input, "utf8")));
-    const state = extra.length
-      ? createReviewTools().validate(JSON.parse(readFileSync(extra[1], "utf8")))
+    const state = savedPath
+      ? createReviewTools().validate(
+          JSON.parse(readFileSync(savedPath, "utf8")),
+        )
       : undefined;
-    if (state?.reviewed) report = prepareComparison(report, state, extra[3]);
-    const html = renderReport(report, state);
+    if (state?.reviewed)
+      report = prepareComparison(report, state, options.repo!);
+    const html = renderReport(report, state, options);
     writeFileSync(output, html);
     console.log(`生成: ${output} (${Buffer.byteLength(html)} bytes)`);
   } catch (error) {

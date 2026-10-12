@@ -1,5 +1,6 @@
 import type { Report, Target, View } from "../scripts/model.ts";
 import type { ReviewState } from "../scripts/review-state.ts";
+import type { CodeLink } from "../scripts/code-links.ts";
 declare const VIEW_NAMES: Record<View, string>;
 declare const indexTargets: typeof import("../scripts/model.ts").indexTargets;
 declare const buildPrompt: typeof import("../scripts/model.ts").buildPrompt;
@@ -10,6 +11,9 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
     document.getElementById("report-data")!.textContent!,
   );
   const targets = indexTargets(report);
+  const codeLinks: Record<string, CodeLink> = JSON.parse(
+    document.getElementById("code-link-data")!.textContent!,
+  );
   const comments = new Map<string, string>();
   const review = createReviewTools();
   let state: ReviewState = review.validate(
@@ -197,11 +201,24 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
     const side = c.side === "before" ? "変更前" : "変更後";
     const block = el("section", undefined, "code-panel " + c.side);
     const heading = annotate(t, el("div", undefined, "code-heading"));
-    heading.append(
-      el("h3", side),
-      el("p", c.file),
-      el("small", "版 " + c.revision),
-    );
+    const link = Object.hasOwn(codeLinks, id) ? codeLinks[id] : undefined;
+    const file = el("p");
+    if (link && "url" in link) {
+      const anchor = el("a", c.file + " ↗");
+      anchor.href = link.url;
+      anchor.title = "VS Code で開く（生成時に対象版との一致を確認）";
+      file.append(anchor);
+    } else file.textContent = c.file;
+    heading.append(el("h3", side), file, el("small", "版 " + c.revision));
+    if (link)
+      heading.append(
+        el(
+          "small",
+          "url" in link
+            ? "VS Code：生成時に対象版と一致。閲覧前にファイルを変更すると参照内容も変わります。"
+            : "VS Code：" + link.reason,
+        ),
+      );
     block.append(heading);
     const lines = el("div", undefined, "code-lines");
     for (const line of c.lines) {
@@ -209,10 +226,21 @@ declare const createReviewTools: typeof import("../scripts/review-state.ts").cre
         targets.get(line.id)!,
         el("div", undefined, "code-line " + line.change),
       );
-      row.append(
-        el("span", String(line.number), "line-number"),
-        el("code", line.text || " "),
-      );
+      const ref = Object.hasOwn(codeLinks, line.id)
+        ? codeLinks[line.id]
+        : undefined;
+      const number =
+        ref && "url" in ref
+          ? el("a", String(line.number), "line-number")
+          : el("span", String(line.number), "line-number");
+      if (number instanceof HTMLAnchorElement && ref && "url" in ref) {
+        number.href = ref.url;
+        number.setAttribute(
+          "aria-label",
+          `VS Code で ${c.file} の ${line.number} 行を開く`,
+        );
+      }
+      row.append(number, el("code", line.text || " "));
       lines.append(row);
     }
     block.append(lines, references(t));
