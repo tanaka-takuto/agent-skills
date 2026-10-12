@@ -164,3 +164,12 @@ test("前回差分の予約IDとコード行IDの衝突を拒否する", () => {
   r.targets[8].code!.lines[0].id = "review.patch";
   assert.throws(() => validateReport(r), /予約ID/);
 });
+
+for (const id of ["title", "diff", "c1", "AC-1", "ev1", "new-line"]) {
+  test(`初回レポートでも${id}への予約IDの割当てを拒否する`, () => {
+    const r = JSON.parse(JSON.stringify(fixture()), (_key, value) =>
+      value === id ? "review.patch" : value,
+    );
+    assert.throws(() => validateReport(r), /予約ID/);
+  });
+}

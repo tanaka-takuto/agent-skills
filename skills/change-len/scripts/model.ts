@@ -140,6 +140,7 @@ export function validateReport(input: unknown): Report {
     text(v, p);
     if (!/^[a-zA-Z0-9_.:-]+$/.test(v as string))
       fail(p, "IDは英数字と _ . : -");
+    if (v === "review.patch") fail(p, "review.patch は前回差分の予約ID");
     if (allIds.has(v as string)) fail(p, `重複ID ${v}`);
     allIds.add(v as string);
   };
@@ -330,8 +331,6 @@ export function validateReport(input: unknown): Report {
     if (!shown.has(t.id))
       fail(`targets.${t.id}`, "画面の配置から参照されていない");
   });
-  if (r.reviewComparison && allIds.has("review.patch"))
-    fail("reviewComparison", "review.patch は前回差分の予約ID");
   return r;
 }
 
