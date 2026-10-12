@@ -152,3 +152,74 @@ test("別版で同じ対象へ追加された記録の復元も競合として�
     b = review.save(review.empty(), n, "flow", "別の版の指摘", "comment.2");
   assert.throws(() => review.merge(a, b), /衝突|競合/);
 });
+
+for (const [field, value] of [
+  ["status", "missing"],
+  ["method", "ブラウザ操作"],
+  ["conditions", "別の隔離環境"],
+  ["result", "確認を実施したが証拠の記録がない"],
+] as const) {
+  test(`確認根拠の${field}だけの変更も差分とコメントの確認待ちへ反映する`, () => {
+    const r = Object.assign(fixture(), { reviewKey: "sample:evidence" });
+    let state = review.save(
+      review.empty(),
+      r,
+      "evidence",
+      "根拠の指摘",
+      "comment.1",
+    );
+    state = review.save(state, r, "new-line", "コードの指摘", "comment.2");
+    state = review.save(state, r, "question", "無関係の指摘", "comment.3");
+    state = review.markReviewed(state, r);
+    const changed = next(r);
+    Object.assign(changed.evidence[0], { [field]: value });
+
+    const ids = review.difference(state, changed)!.changedIds;
+    for (const id of [
+      "evidence",
+      "change",
+      "new-line",
+      "requirement",
+      "expectation",
+    ])
+      assert.ok(ids.includes(id), id);
+    assert.ok(!ids.includes("question"));
+    assert.deepEqual(
+      review.resolve(state, changed).map((c) => c.status),
+      ["changed", "changed", "current"],
+    );
+    assert.match(review.buildRequest(state, changed), /引継ぎ確認待ち/);
+    const confirmed = review.confirm(state, "comment.1", changed);
+    assert.equal(review.resolve(confirmed, changed)[0].status, "current");
+  });
+}
+
+test("同じ出典IDの本文変更も、その出典を使う対象だけに反映する", () => {
+  const r = Object.assign(fixture(), { reviewKey: "sample:source" });
+  let state = review.save(review.empty(), r, "flow", "出典の指摘", "comment.1");
+  state = review.markReviewed(state, r);
+  const changed = next(r);
+  changed.sources[0].excerpt = "+return 3;";
+  assert.ok(review.difference(state, changed)!.changedIds.includes("flow"));
+  assert.ok(
+    !review.difference(state, changed)!.changedIds.includes("question"),
+  );
+  assert.equal(review.resolve(state, changed)[0].status, "changed");
+});
+
+test("確認根拠の出典が変わった場合も、根拠を参照するコードに反映する", () => {
+  const r = Object.assign(fixture(), { reviewKey: "sample:evidence-source" });
+  r.targets.find((t) => t.id === "evidence")!.sourceIds = ["spec"];
+  let state = review.save(
+    review.empty(),
+    r,
+    "new-line",
+    "根拠の指摘",
+    "comment.1",
+  );
+  state = review.markReviewed(state, r);
+  const changed = next(r);
+  changed.sources[1].excerpt = "確認記録の内容が変わった";
+  assert.ok(review.difference(state, changed)!.changedIds.includes("new-line"));
+  assert.equal(review.resolve(state, changed)[0].status, "changed");
+});

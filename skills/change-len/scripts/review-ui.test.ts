@@ -244,3 +244,50 @@ test("前回差分を見たまま現在版をレビュー済みにすると比�
   );
   d.window.close();
 });
+
+test("確認結果だけが更新された要件と変更を前回比較に残し、コメントを確認待ちにする", () => {
+  const r = Object.assign(fixture(), { reviewKey: "sample:evidence-update" });
+  const state = review.markReviewed(
+    review.save(
+      review.empty(),
+      r,
+      "evidence",
+      "確認結果を残してください",
+      "comment.1",
+    ),
+    r,
+  );
+  const n = next(r);
+  n.evidence[0].status = "missing";
+  n.evidence[0].result = "確認を実施したが証拠の記録がない";
+  n.reviewComparison = {
+    base: r.revision.head!,
+    head: n.revision.head!,
+    sourceId: "diff",
+  };
+  const d = page(n, state);
+  try {
+    click(d, "[data-previous]");
+    assert.equal(
+      d.window.document.querySelector<HTMLElement>('[data-requirement="AC-1"]')!
+        .hidden,
+      false,
+    );
+    assert.equal(
+      d.window.document.querySelector<HTMLElement>('[data-change="c1"]')!
+        .hidden,
+      false,
+    );
+    assert.match(
+      d.window.document.querySelector("#pending-count")!.textContent!,
+      /1/,
+    );
+    click(d, "[data-records]");
+    assert.match(
+      d.window.document.querySelector("#pending-comments")!.textContent!,
+      /内容変更/,
+    );
+  } finally {
+    d.window.close();
+  }
+});

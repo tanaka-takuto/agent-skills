@@ -35,11 +35,25 @@ export function createReviewTools() {
         : v,
     );
   const key = (r: Report) => (r as Report & { reviewKey?: string }).reviewKey;
-  const semantic = (t: Target) =>
-    canonical({
-      ...t,
-      code: t.code ? { ...t.code, revision: undefined } : undefined,
+  const semantic = (r: Report, t: Target) => {
+    const evidence = r.evidence.filter(
+      (e) => e.targetId === t.id || t.evidenceIds.includes(e.id),
+    );
+    const sourceIds = new Set([
+      ...t.sourceIds,
+      ...evidence.flatMap(
+        (e) => r.targets.find((target) => target.id === e.targetId)!.sourceIds,
+      ),
+    ]);
+    return canonical({
+      target: {
+        ...t,
+        code: t.code ? { ...t.code, revision: undefined } : undefined,
+      },
+      sources: [...sourceIds].map((id) => r.sources.find((s) => s.id === id)),
+      evidence,
     });
+  };
   const location = (t: Target) =>
     canonical([
       t.view,
@@ -87,7 +101,10 @@ export function createReviewTools() {
         key(s.reports[c.binding.snapshot]) ??
           canonical(s.reports[c.binding.snapshot]),
         c.binding.targetId,
-        semantic(maps[c.binding.snapshot].get(c.binding.targetId)!),
+        semantic(
+          s.reports[c.binding.snapshot],
+          maps[c.binding.snapshot].get(c.binding.targetId)!,
+        ),
       ]);
       if (bindings.has(bindingKey))
         throw new Error("同じ対象のコメントが競合しています");
@@ -122,7 +139,8 @@ export function createReviewTools() {
       let status: ResolvedComment["status"] = "current";
       if (!candidate) status = "missing";
       else if (location(previous) !== location(candidate)) status = "moved";
-      else if (semantic(previous) !== semantic(candidate)) status = "changed";
+      else if (semantic(bound, previous) !== semantic(r, candidate))
+        status = "changed";
       else if (
         canonical(bound) !== canonical(r) &&
         (!key(bound) || key(bound) !== key(r))
@@ -256,7 +274,9 @@ export function createReviewTools() {
       head: r.revision.head,
       changedIds: [...current.values()]
         .filter(
-          (t) => !old.has(t.id) || semantic(t) !== semantic(old.get(t.id)!),
+          (t) =>
+            !old.has(t.id) ||
+            semantic(r, t) !== semantic(previous, old.get(t.id)!),
         )
         .map((t) => t.id),
       removed: [...old.values()].filter((t) => !current.has(t.id)),
