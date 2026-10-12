@@ -18,11 +18,13 @@ git config --local core.hooksPath .githook
 
 `pre-commit` はステージ済みの追加・変更・改名されたファイルに、次の検査を行います。
 
-- `SKILL.md` のファイル名、Skill ディレクトリ名、frontmatter の `name`。
+- `SKILL.md` のファイル名、Skill ディレクトリ名、frontmatter の `name`（64文字以内）。
 - `SKILL.md` の行数、総文字数、1行の文字数。
 - 参照資料を含むすべての `.md` の Prettier フォーマット。
 
 未整形や上限超過があればコミットを止めます。Git のインデックスにある内容を検査し、作業ツリーの自動整形や再ステージは行いません。部分ステージで残した変更はそのまま保たれます。フォーマット設定と指定バージョンもステージ済みの `.prettierrc.json` と `package.json` から読みます。Markdown の削除だけの場合はフォーマット検査を行いません。
+
+frontmatter は YAML として解析します。コメント、引用符、複数行文字列などの有効な構文を受け入れ、不正な構文や重複キーは拒否します。`name` は文字列とし、ケバブケースで Skill ディレクトリ名と一致させます。解析に使う `yaml` も `npm ci` で導入します。
 
 ## Markdown のフォーマット
 

@@ -129,3 +129,46 @@ test('review script checks a working-tree SKILL.md by path', (t) => {
   assert.equal(result.status, 1, result.stderr);
   assert.match(result.stderr, /example_skill/);
 });
+
+for (const length of [64, 65]) {
+  test(`review script enforces the 64-character name limit at ${length}`, (t) => {
+    const cwd = fixture(t);
+    const name = 'a'.repeat(length);
+    const path = `skills/${name}/SKILL.md`;
+    stage(cwd, path, `---\nname: ${name}\ndescription: Test.\n---\n`);
+    const result = spawnSync(process.execPath, [join(repo, '.agents/skills/review-agent-skill/scripts/check-skill-names.mjs'), join(cwd, path)], { cwd, encoding: 'utf8' });
+    assert.equal(result.status, length === 64 ? 0 : 1, result.stderr);
+    if (length === 65) assert.match(result.stderr, /64/);
+  });
+}
+
+for (const [label, frontmatter] of [
+  ['inline comment', 'name: example-skill # comment\ndescription: Test.'],
+  ['quoted value and comment', 'name: "example-skill" # comment\ndescription: Test.'],
+  ['folded scalar', 'name: >-\n  example-skill\ndescription: Test.'],
+  ['quoted key', '"name": example-skill\ndescription: Test.'],
+  ['flow mapping', '{ name: example-skill, description: Test. }'],
+]) {
+  test(`review script reads a valid YAML name with ${label}`, (t) => {
+    const cwd = fixture(t);
+    const path = 'skills/example-skill/SKILL.md';
+    stage(cwd, path, `---\n${frontmatter}\n---\n`);
+    const result = spawnSync(process.execPath, [join(repo, '.agents/skills/review-agent-skill/scripts/check-skill-names.mjs'), join(cwd, path)], { cwd, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+  });
+}
+
+for (const [label, name, frontmatter] of [
+  ['duplicate name keys', 'example-skill', 'name: example-skill\n"name": example-skill'],
+  ['malformed YAML', 'example-skill', 'name: example-skill\ndescription: [unfinished'],
+  ['numeric name', '123', 'name: 123\ndescription: Test.'],
+]) {
+  test(`review script rejects ${label}`, (t) => {
+    const cwd = fixture(t);
+    const path = `skills/${name}/SKILL.md`;
+    stage(cwd, path, `---\n${frontmatter}\n---\n`);
+    const result = spawnSync(process.execPath, [join(repo, '.agents/skills/review-agent-skill/scripts/check-skill-names.mjs'), join(cwd, path)], { cwd, encoding: 'utf8' });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /name|YAML/);
+  });
+}

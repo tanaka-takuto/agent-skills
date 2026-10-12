@@ -13,7 +13,7 @@ function git(...args) {
   return result.stdout;
 }
 
-function check(path, content) {
+function check(path, content, parseYaml) {
   const errors = [];
   if (basename(path) !== 'SKILL.md') {
     errors.push('ファイル名は SKILL.md にしてください');
@@ -25,17 +25,27 @@ function check(path, content) {
   }
 
   const frontmatter = content.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
-  const names = frontmatter?.split(/\r?\n/).filter((line) => /^name:[ \t]*/.test(line)) ?? [];
-  if (names.length !== 1) {
-    errors.push('frontmatter に name を1つ指定してください');
-  } else {
-    const rawName = names[0].slice('name:'.length).trim();
-    const name = rawName.replace(/^(['"])(.*)\1$/, '$2');
-    if (!kebabCase.test(name)) {
-      errors.push(`name「${name}」はケバブケースにしてください`);
-    } else if (name !== directoryName) {
-      errors.push(`name「${name}」をディレクトリ名「${directoryName}」と一致させてください`);
+  try {
+    const metadata = frontmatter === undefined
+      ? undefined
+      : parseYaml(frontmatter, { uniqueKeys: true, logLevel: 'error' });
+    const name = metadata && typeof metadata === 'object' && !Array.isArray(metadata)
+      ? metadata.name
+      : undefined;
+    if (typeof name !== 'string') {
+      errors.push('frontmatter に文字列の name を1つ指定してください');
+    } else {
+      if ([...name].length > 64) {
+        errors.push(`name は64文字以内にしてください（${[...name].length}文字）`);
+      }
+      if (!kebabCase.test(name)) {
+        errors.push(`name「${name}」はケバブケースにしてください`);
+      } else if (name !== directoryName) {
+        errors.push(`name「${name}」をディレクトリ名「${directoryName}」と一致させてください`);
+      }
     }
+  } catch (error) {
+    errors.push(`frontmatter の YAML が不正です: ${error.message}`);
   }
   return errors.map((error) => `${path}: ${error}`);
 }
@@ -54,7 +64,8 @@ try {
     throw new Error('使い方: check-skill-names.mjs --staged | <SKILL.md>...');
   }
 
-  const errors = files.flatMap(([path, content]) => check(path, content));
+  const parseYaml = files.length ? (await import('yaml')).parse : undefined;
+  const errors = files.flatMap(([path, content]) => check(path, content, parseYaml));
   if (errors.length) {
     console.error(errors.join('\n'));
     process.exitCode = 1;
