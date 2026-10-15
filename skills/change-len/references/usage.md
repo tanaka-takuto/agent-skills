@@ -1,10 +1,10 @@
 # 導入と検証
 
-公開元の `skills/change-len` は共通の Skill パッケージ。実行に必要なのは `SKILL.md`、`references`、`scripts/model.ts`、`scripts/review-state.ts`、`scripts/compare.ts`、`scripts/code-links.ts`、`scripts/render.ts`、`assets`、このディレクトリの `package.json`。生成コードは Node.js 標準ライブラリだけを使う。
+公開元の `skills/change-len` は共通の Skill パッケージ。実行に必要なのは `SKILL.md`、`references`、`scripts/model.ts`、`scripts/review-state.ts`、`scripts/compare.ts`、`scripts/code-links.ts`、`scripts/render.ts`、`scripts/render.sh`、`assets`、このディレクトリの `package.json`。ランチャーは POSIX シェル、生成コードは Node.js 標準ライブラリだけを使う。
 
 ## Claude Code／Codex
 
-対象リポジトリへフォルダー全体をコピーするか、そのホストが探索する場所からシンボリックリンクする。公開元をホストごとに書き換えない。
+対象リポジトリへフォルダー全体をコピーするか、そのホストが探索する場所からシンボリックリンクする。コピー時は `scripts/render.sh` の実行権限も保持する。公開元をホストごとに書き換えない。
 
 | ホスト      | プロジェクト内の配置先      | 起動例                                                          |
 | ----------- | --------------------------- | --------------------------------------------------------------- |
@@ -20,8 +20,10 @@
 リポジトリルートから実コミットのサンプルを生成する。
 
 ```sh
-node skills/change-len/scripts/render.ts skills/change-len/references/example.json /tmp/change-len-review.html
+skills/change-len/scripts/render.sh skills/change-len/references/example.json /tmp/change-len-review.html
 ```
+
+同梱の `scripts/render.sh` を入口にする。内部で同じディレクトリの `render.ts` を Node.js で実行し、すべての引数と終了コードを引き継ぐ。別の cwd からはランチャーの絶対パスを指定する。入力・出力やオプションの相対パスは呼び出し元の cwd を基準にする。
 
 別の実入力は `references/pr-example.json`（Node.js PR #56350 と Issue #17）、資料なしの差分入力は `references/diff-example.json`。同じ生成コードを使用できる。
 
@@ -34,7 +36,7 @@ node skills/change-len/scripts/render.ts skills/change-len/references/example.js
 「コード参照を VS Code で開けるリンクにして」と指定された場合だけ、`--vscode-local` と `--repo` を付ける。`--repo` は閲覧する端末のローカルリポジトリのルート。対象リポジトリがその端末にあり参照先が確定していれば、その場所を使う。リモート環境しか分からない場合は閲覧側の場所を確認し、パスの文字列置換でリンクを捏造しない。
 
 ```sh
-node /path/to/change-len/scripts/render.ts /path/to/report.json /path/to/review.html \
+/path/to/change-len/scripts/render.sh /path/to/report.json /path/to/review.html \
   --vscode-local --repo /absolute/path/to/local/repository
 ```
 

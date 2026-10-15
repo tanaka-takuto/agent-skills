@@ -11,7 +11,7 @@ description: コミット、差分、PR と関連資料を読み、人間が目�
 
 入力は対象リポジトリとコミット、比較範囲、差分ファイル、PR のいずれか。Issue、仕様、完了条件、決定記録、実装者の確認記録は渡された分だけ読む。比較対象が曖昧で説明が変わる場合だけ確認する。「全履歴」を直近コミットへ縮めない。
 
-Node.js の型除去に対応する版（22.18 以降の 22 系、23.6 以降）と Git が必要。PR／Issue を取得するときだけ認証済みの `gh` または利用可能な接続を使う。HTML 閲覧には JavaScript が使えるブラウザを使う。生成に npm install、ビルド、常駐サーバーは不要。
+POSIX シェル、Node.js の型除去に対応する版（22.18 以降の 22 系、23.6 以降）、Git が必要。PR／Issue を取得するときだけ認証済みの `gh` または利用可能な接続を使う。HTML 閲覧には JavaScript が使えるブラウザを使う。生成に npm install、ビルド、常駐サーバーは不要。
 
 ## 進め方
 
@@ -23,10 +23,10 @@ Node.js の型除去に対応する版（22.18 以降の 22 系、23.6 以降）
 6. JSON と元の差分・資料を照合する。生成 HTML だけを別ディレクトリへコピーし、オフラインの実ブラウザで 3 画面、関連箇所への移動、対象へのコメント、依頼文の取得を確認する。入力取消・未保存・空欄が依頼文へ混ざらず、コードの前後と版、要件、特殊文字が保たれることも確認する。ブラウザやホストの実起動が未確認なら、その境界を明示する。
 
 ```sh
-node /path/to/change-len/scripts/render.ts /path/to/report.json /path/to/review.html
+/path/to/change-len/scripts/render.sh /path/to/report.json /path/to/review.html
 ```
 
-`/path/to/change-len` は読み込んだこの Skill のディレクトリへ置き換える。対象リポジトリの cwd に依存しない。Node.js の型除去は型検査を行わないため、生成コードを変更した場合はこのリポジトリで `npm run check:change-len` と `npm run test:change-len` を実行する。
+`/path/to/change-len` は読み込んだこの Skill のディレクトリへ置き換える。生成には同梱の `scripts/render.sh` を直接実行する。ラッパーが Node.js を起動し、引数と終了コードを引き継ぐ。対象リポジトリの cwd に依存せず、相対パスの引数は呼び出し元の cwd を基準にする。Node.js の型除去は型検査を行わないため、生成コードを変更した場合はこのリポジトリで `npm run check:change-len` と `npm run test:change-len` を実行する。
 
 ## 画面と引き継ぎ
 

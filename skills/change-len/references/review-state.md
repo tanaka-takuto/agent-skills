@@ -24,7 +24,7 @@
 4. 保存 JSON と対象リポジトリを指定して生成する。
 
 ```sh
-node /path/to/change-len/scripts/render.ts /path/to/new-report.json /path/to/review.html \
+/path/to/change-len/scripts/render.sh /path/to/new-report.json /path/to/review.html \
   --review-state /path/to/change-len-review.json --repo /path/to/repository
 ```
 

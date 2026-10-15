@@ -76,7 +76,7 @@ if (
   try {
     const [input, output, ...extra] = process.argv.slice(2);
     const usage =
-      "使い方: node render.ts <report.json> <review.html> [--vscode-local] [--review-state <review-state.json>] [--repo <repository>]";
+      "使い方: render.sh <report.json> <review.html> [--vscode-local] [--review-state <review-state.json>] [--repo <repository>]";
     if (!input || !output) throw new Error(usage);
     const options: RenderOptions = {};
     let savedPath: string | undefined;

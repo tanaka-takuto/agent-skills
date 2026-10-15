@@ -19,7 +19,7 @@ git show 'HEAD_ID:path/to/file.ts'
 
 ## 差分ファイル
 
-渡された差分をそのまま保存し、`node` の `createHash('sha256')` などで SHA-256 を記録する。元版・先版が確定していなければ `revision.kind: "diff"` とし、未確認のまま表示する。コードと周辺文脈は入力から読み取れる範囲だけ収録する。差分が空の場合も、存在しない変更を創作しない。
+渡された差分をそのまま保存し、`sha256sum /path/to/change.diff` または `shasum -a 256 /path/to/change.diff` で SHA-256 を記録する。元版・先版が確定していなければ `revision.kind: "diff"` とし、未確認のまま表示する。コードと周辺文脈は入力から読み取れる範囲だけ収録する。差分が空の場合も、存在しない変更を創作しない。
 
 ## PR と Issue
 
