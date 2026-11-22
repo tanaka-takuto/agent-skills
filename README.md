@@ -131,6 +131,8 @@ $define-loop この完了条件から、ループ実行へ渡す指示書を作�
 | [define-boundaries](skills/define-boundaries/SKILL.md)       | 責務と所有者、依存、境界を越える契約を決める                           |
 | [compare-options](skills/compare-options/SKILL.md)           | 同じ目的と評価基準で代替案を比較する                                   |
 | [test-assumptions](skills/test-assumptions/SKILL.md)         | 重要な仮定を反証可能にし、証拠で確かめる                               |
+| [evaluate-agent-skill](skills/evaluate-agent-skill/SKILL.md) | Skillなし／ありや改訂前後を比較し、効果・負担と適用範囲を判断する      |
+| [write-for-reader](skills/write-for-reader/SKILL.md)         | 読者の目的と知識に合わせ、文章と図表を選んで説明を組み立てる           |
 | [design-web-app](skills/design-web-app/SKILL.md)             | 画面、API、データ、認証、インフラと運用を整合させる                    |
 | [reconstruct-behavior](skills/reconstruct-behavior/SKILL.md) | 資料や実装から、現在の挙動と暗黙の契約を復元する                       |
 | [migrate-legacy](skills/migrate-legacy/SKILL.md)             | 既存機能を保ちながら、設計・移行・検証を進める                         |
